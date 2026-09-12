@@ -108,6 +108,7 @@
   // key ที่ไม่ตรงกับกลุ่มไหนเลย จะตกไปกลุ่ม "อื่นๆ" ท้ายสุดอัตโนมัติ กันตกหล่นถ้ามี setting ใหม่ในอนาคต
   const GROUPS = [
     { icon: '☀️', title: 'Daily Brief', audience: 'owner', keys: ['daily_brief.enabled', 'daily_brief.missing_customer_days_min', 'daily_brief.missing_customer_days_max', 'daily_brief.missing_customer_min_cups'] },
+    { icon: '📊', title: 'Weekly Business Review', audience: 'owner', keys: ['weekly_review.enabled'] },
     { icon: '💬', title: 'Auto-Feedback', audience: 'customer', keys: ['auto_feedback.enabled', 'auto_feedback.message_template'] },
     { icon: '👋', title: 'Win-back Journey', audience: 'customer', keys: ['crm.winback_enabled', 'crm.winback_days_min', 'crm.winback_days_max', 'crm.winback_min_cups', 'crm.winback_message_template'] },
     { icon: '🎂', title: 'Birthday Journey', audience: 'customer', keys: ['crm.birthday_enabled', 'crm.birthday_reward_text', 'crm.reward_cap_amount', 'crm.birthday_message_template'] },
