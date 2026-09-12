@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>กาแฟแมวส้ม — ประวัติการส่ง</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, "Segoe UI", "Mitr", sans-serif; background: #FFF8F0; color: #4A3428; padding-bottom: 48px; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #FFF3E8, #FFE4CC); padding: 20px 20px 16px; text-align: center; }
+  .header .brand { font-size: 12px; color: #A8876F; letter-spacing: 1px; margin-bottom: 2px; }
+  .header h1 { font-size: 20px; color: #4A3428; }
+  .header .sub { font-size: 12px; color: #E8863A; font-weight: 600; margin-top: 4px; }
+  .header a.back { display: inline-block; margin-top: 10px; font-size: 12px; color: #A8876F; text-decoration: underline; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  .filter-row { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+  .filter-chip { flex-shrink: 0; padding: 8px 14px; border-radius: 999px; border: 2px solid #F0E4D8; background: #fff; font-size: 12.5px; font-weight: 600; color: #A8876F; }
+  .filter-chip.active { background: #E8863A; border-color: #E8863A; color: #fff; }
+
+  .day-group { margin-bottom: 18px; }
+  .day-label { font-size: 12px; font-weight: 700; color: #A8876F; margin-bottom: 8px; padding-left: 2px; }
+  .log-item { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .log-type { font-size: 13px; font-weight: 600; }
+  .log-name { font-size: 12px; color: #A8876F; margin-top: 2px; }
+  .log-time { font-size: 11px; color: #C4A98A; white-space: nowrap; }
+
+  .loading, .empty { text-align: center; color: #A8876F; font-size: 13px; padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">🐱 กาแฟแมวส้ม</div>
+  <h1>ประวัติการส่ง</h1>
+  <div class="sub">ทุก automation ที่เคยยิงหาลูกค้า</div>
+  <a class="back" href="./index.html">← กลับไป Admin</a>
+</div>
+
+<div class="wrap">
+  <div class="filter-row" id="filterRow">
+    <button class="filter-chip active" data-type="all">ทั้งหมด</button>
+    <button class="filter-chip" data-type="winback">👋 Win-back</button>
+    <button class="filter-chip" data-type="birthday">🎂 Birthday</button>
+    <button class="filter-chip" data-type="passport_unlock">🎉 สะสมครบ 10</button>
+    <button class="filter-chip" data-type="gtky_welcome">📝 GTKY ต้อนรับ</button>
+    <button class="filter-chip" data-type="auto_feedback">💬 ขอฟีดแบ็ค</button>
+    <button class="filter-chip" data-type="custom_broadcast">📢 Broadcast</button>
+  </div>
+
+  <div id="logList"><div class="loading">กำลังโหลด...</div></div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://nhzjnutvirjgiclkkfgx.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oempudXR2aXJqZ2ljbGtrZmd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMjc3NjEsImV4cCI6MjA5ODcwMzc2MX0.Bv2zsjmo3yd9YpmfxUAmXf-aaFy7SbY77fmM_k4f7eg";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const TYPE_LABELS = {
+    winback: '👋 Win-back',
+    birthday: '🎂 Birthday',
+    passport_unlock: '🎉 สะสมครบ 10 แก้ว',
+    gtky_welcome: '📝 GTKY ต้อนรับสมาชิกใหม่',
+    auto_feedback: '💬 ขอฟีดแบ็ค',
+    custom_broadcast: '📢 Broadcast',
+  };
+
+  let logCache = [];
+  let currentFilter = 'all';
+
+  async function loadLogs() {
+    const { data, error } = await sb
+      .from('automation_log')
+      .select('*')
+      .order('sent_at', { ascending: false })
+      .limit(300);
+
+    const listEl = document.getElementById('logList');
+    if (error) { listEl.innerHTML = `<div class="empty">โหลดไม่สำเร็จ: ${error.message}</div>`; return; }
+
+    logCache = data || [];
+    render();
+  }
+
+  function render() {
+    const listEl = document.getElementById('logList');
+    const rows = currentFilter === 'all' ? logCache : logCache.filter(r => r.automation_type === currentFilter);
+
+    if (!rows.length) { listEl.innerHTML = '<div class="empty">ยังไม่มีประวัติการส่ง</div>'; return; }
+
+    const groups = {};
+    rows.forEach(r => {
+      const d = new Date(r.sent_at);
+      const key = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+
+    listEl.innerHTML = Object.entries(groups).map(([day, items]) => `
+      <div class="day-group">
+        <div class="day-label">${day} (${items.length})</div>
+        ${items.map(r => `
+          <div class="log-item">
+            <div>
+              <div class="log-type">${TYPE_LABELS[r.automation_type] || r.automation_type}</div>
+              <div class="log-name">${r.customer_name || r.line_user_id || '-'}</div>
+            </div>
+            <div class="log-time">${new Date(r.sent_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('filterRow').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-chip');
+    if (!btn) return;
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.type;
+    render();
+  });
+
+  loadLogs();
+</script>
+
+</body>
+</html>
