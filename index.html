@@ -57,8 +57,45 @@
   <div class="sub">Control Panel — แก้กฎของระบบ</div>
 </div>
 
-<div class="wrap" id="app">
-  <div class="loading">กำลังโหลด...</div>
+<div class="wrap">
+
+  <div class="group audience-owner" id="pendingGroup" style="display:none;">
+    <div class="group-head">
+      <div class="group-title">⏳ รออนุมัติ</div>
+      <span class="audience-tag owner">📥 ต้องตัดสินใจ</span>
+    </div>
+    <div id="pendingList"></div>
+  </div>
+
+  <div class="group audience-customer">
+    <div class="group-head">
+      <div class="group-title">📢 ส่งข้อความหาลูกค้า</div>
+      <span class="audience-tag customer">📤 ส่งหาลูกค้า</span>
+    </div>
+    <div class="item">
+      <div class="desc">เลือกกลุ่มเป้าหมาย + พิมพ์ข้อความ แล้วดูรายชื่อก่อนส่งจริงเสมอ — ถ้าเกิน 5 คนจะหยุดรอ approve อัตโนมัติ</div>
+      <div style="margin-bottom:10px;">
+        <label class="label" style="display:block;margin-bottom:6px;">สั่งสะสมอย่างน้อยกี่แก้ว</label>
+        <input type="number" id="bcMinCups" value="2" style="width:100px;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="label" style="display:block;margin-bottom:6px;">สั่งล่าสุดภายในกี่วัน (เว้นว่าง = ไม่จำกัด)</label>
+        <input type="number" id="bcMaxDays" placeholder="ไม่จำกัด" style="width:100px;">
+      </div>
+      <button class="btn-save" id="bcLoadBtn" style="margin-bottom:14px;">โหลดรายชื่อ</button>
+      <div id="bcSegmentResult" style="font-size:13px;color:#4A3428;margin-bottom:14px;"></div>
+      <div style="margin-bottom:10px;">
+        <label class="label" style="display:block;margin-bottom:6px;">ข้อความ (ใช้ {{name}} แทนชื่อลูกค้าได้)</label>
+        <textarea id="bcMessage" rows="4" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #F0E4D8;font-size:13.5px;font-family:inherit;color:#4A3428;resize:vertical;" placeholder="สวัสดีค่ะ {{name}} ..."></textarea>
+      </div>
+      <button class="btn-save" id="bcSendBtn" disabled>ส่งเลย</button>
+      <div id="bcSendResult" style="font-size:13px;margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div class="loading">กำลังโหลด...</div>
+  </div>
 </div>
 
 <script>
@@ -245,7 +282,106 @@
     }
   }
 
-  loadSettings();
+  // ---------- PENDING APPROVAL ----------
+async function loadPendingApprovals() {
+  const { data } = await sb.from('automation_pending_approval').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+  const group = document.getElementById('pendingGroup');
+  const list = document.getElementById('pendingList');
+  if (!data || !data.length) { group.style.display = 'none'; return; }
+
+  group.style.display = 'block';
+  list.innerHTML = '';
+  const TYPE_LABELS = { winback: '👋 Win-back', birthday: '🎂 Birthday', custom_broadcast: '📢 Broadcast' };
+
+  data.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'item';
+    const names = (p.candidates || []).map(c => c.customer_name).join(', ');
+    item.innerHTML = `
+      <div class="label">${TYPE_LABELS[p.automation_type] || p.automation_type} — ${p.candidate_count} คน</div>
+      <div class="desc">${names}</div>
+      <div class="desc" style="white-space:pre-wrap;background:#FFF8F0;padding:8px;border-radius:8px;margin:8px 0;">${p.message_template}</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-save" data-action="approve" data-id="${p.id}">✅ ส่งเลย</button>
+        <button class="btn-save" data-action="reject" data-id="${p.id}" style="background:#C4685A;">❌ ยกเลิก</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  list.querySelectorAll('[data-action="approve"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+      const res = await fetch('https://nhzjnutvirjgiclkkfgx.supabase.co/functions/v1/send-approved-batch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pending_approval_id: btn.dataset.id }),
+      });
+      const json = await res.json();
+      btn.textContent = json.ok ? `✓ ส่งแล้ว ${json.sent} คน` : 'ผิดพลาด';
+      setTimeout(loadPendingApprovals, 1200);
+    });
+  });
+  list.querySelectorAll('[data-action="reject"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('ยกเลิก batch นี้? จะไม่ส่งข้อความให้ใครเลย')) return;
+      await sb.from('automation_pending_approval').update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', btn.dataset.id);
+      loadPendingApprovals();
+    });
+  });
+}
+
+// ---------- BROADCAST TOOL ----------
+let bcSegmentCache = [];
+
+document.getElementById('bcLoadBtn').addEventListener('click', async () => {
+  const minCups = Number(document.getElementById('bcMinCups').value) || 1;
+  const maxDaysRaw = document.getElementById('bcMaxDays').value;
+  const maxDays = maxDaysRaw ? Number(maxDaysRaw) : null;
+
+  const resultEl = document.getElementById('bcSegmentResult');
+  resultEl.textContent = 'กำลังโหลด...';
+
+  const { data, error } = await sb.rpc('get_broadcast_segment', { p_min_cups: minCups, p_max_days_inactive: maxDays });
+  if (error) { resultEl.textContent = 'โหลดไม่สำเร็จ: ' + error.message; return; }
+
+  bcSegmentCache = data || [];
+  const names = bcSegmentCache.map(c => c.customer_name).join(', ');
+  resultEl.innerHTML = `<b>${bcSegmentCache.length} คน</b>${bcSegmentCache.length ? ': ' + names : ''}`;
+  document.getElementById('bcSendBtn').disabled = bcSegmentCache.length === 0;
+});
+
+document.getElementById('bcSendBtn').addEventListener('click', async () => {
+  const message = document.getElementById('bcMessage').value.trim();
+  if (!message) { alert('พิมพ์ข้อความก่อน'); return; }
+  if (!confirm(`ยืนยันส่งข้อความนี้หา ${bcSegmentCache.length} คน?`)) return;
+
+  const minCups = Number(document.getElementById('bcMinCups').value) || 1;
+  const maxDaysRaw = document.getElementById('bcMaxDays').value;
+  const maxDays = maxDaysRaw ? Number(maxDaysRaw) : null;
+
+  const btn = document.getElementById('bcSendBtn');
+  btn.disabled = true; btn.textContent = 'กำลังส่ง...';
+
+  const res = await fetch('https://nhzjnutvirjgiclkkfgx.supabase.co/functions/v1/broadcast-send', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ min_cups: minCups, max_days_inactive: maxDays, message_template: message }),
+  });
+  const json = await res.json();
+  const resultEl = document.getElementById('bcSendResult');
+  if (json.held_for_approval) {
+    resultEl.textContent = `⏳ เกิน 5 คน (${json.count} คน) — รออนุมัติด้านบนของหน้านี้`;
+    loadPendingApprovals();
+  } else if (json.ok) {
+    resultEl.textContent = `✓ ส่งสำเร็จ ${json.sent} คน`;
+  } else {
+    resultEl.textContent = 'ผิดพลาด: ' + (json.error || 'unknown');
+  }
+  btn.textContent = 'ส่งเลย';
+  btn.disabled = false;
+});
+
+loadPendingApprovals();
+loadSettings();
 </script>
 
 </body>
