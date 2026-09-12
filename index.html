@@ -14,26 +14,32 @@
   .header h1 { font-size: 20px; color: #4A3428; }
   .header .sub { font-size: 12px; color: #E8863A; font-weight: 600; margin-top: 4px; }
   .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
-  .section-label { font-size: 12px; color: #8a6a4a; margin: 20px 0 8px; font-weight: 700; letter-spacing: .5px; }
-  .section-label:first-child { margin-top: 0; }
-  .card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); border-left: 4px solid #E0D2C2; }
-  .card.flag { border-left-color: #6B4E8A; }
-  .card.threshold { border-left-color: #E8863A; }
+
+  .group { background: #fff; border-radius: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+  .group-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; background: #FFF3E8; border-bottom: 1px solid #F0E4D8; }
+  .group-title { font-size: 15px; font-weight: 700; color: #4A3428; }
+
+  .item { padding: 14px 16px; border-bottom: 1px solid #F5EDE3; }
+  .item:last-child { border-bottom: none; }
   .row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .label { font-size: 14px; font-weight: 700; color: #4A3428; }
+  .label { font-size: 13.5px; font-weight: 600; color: #4A3428; }
   .desc { font-size: 11.5px; color: #A8876F; margin-bottom: 10px; line-height: 1.5; }
+
   .toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
   .toggle input { opacity: 0; width: 0; height: 0; }
   .slider { position: absolute; cursor: pointer; inset: 0; background: #E0D2C2; border-radius: 999px; transition: .2s; }
   .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
   input:checked + .slider { background: #4A9B5C; }
   input:checked + .slider:before { transform: translateX(20px); }
-  .num-row { display: flex; align-items: center; gap: 8px; }
+
+  .num-row, .text-row { display: flex; align-items: center; gap: 8px; }
   input[type="number"] { width: 90px; padding: 10px 12px; border-radius: 10px; border: 2px solid #F0E4D8; font-size: 16px; font-family: inherit; color: #4A3428; }
-  input[type="number"]:focus { outline: none; border-color: #E8863A; }
-  .btn-save { padding: 9px 16px; border-radius: 8px; border: none; background: #E8863A; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; }
+  input[type="text"] { flex: 1; padding: 10px 12px; border-radius: 10px; border: 2px solid #F0E4D8; font-size: 14px; font-family: inherit; color: #4A3428; }
+  input:focus { outline: none; border-color: #E8863A; }
+  .btn-save { padding: 9px 16px; border-radius: 8px; border: none; background: #E8863A; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; }
   .btn-save:disabled { background: #D8C4B0; }
   .btn-save.saved { background: #4A9B5C; }
+
   .loading, .empty { text-align: center; color: #A8876F; font-size: 13px; padding: 30px 0; }
   .footer-note { text-align: center; font-size: 10.5px; color: #C4A98A; margin-top: 24px; line-height: 1.6; }
 </style>
@@ -55,18 +61,20 @@
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5oempudXR2aXJqZ2ljbGtrZmd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMjc3NjEsImV4cCI6MjA5ODcwMzc2MX0.Bv2zsjmo3yd9YpmfxUAmXf-aaFy7SbY77fmM_k4f7eg";
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const CATEGORY_LABELS = {
-    feature_flag: "🔌 เปิด/ปิดระบบ",
-    threshold: "🎚️ ค่าตั้งต้น (Threshold)",
-  };
+  // จัดกลุ่มตามฟีเจอร์จริง (ไม่ใช่ตามประเภท toggle/threshold แบบเดิม) — สวิตช์เปิด/ปิด + ค่าที่เกี่ยวข้องกันอยู่การ์ดเดียวกัน
+  // key ที่ไม่ตรงกับกลุ่มไหนเลย จะตกไปกลุ่ม "อื่นๆ" ท้ายสุดอัตโนมัติ กันตกหล่นถ้ามี setting ใหม่ในอนาคต
+  const GROUPS = [
+    { icon: '☀️', title: 'Daily Brief', keys: ['daily_brief.enabled', 'daily_brief.missing_customer_days_min', 'daily_brief.missing_customer_days_max', 'daily_brief.missing_customer_min_cups'] },
+    { icon: '💬', title: 'Auto-Feedback', keys: ['auto_feedback.enabled'] },
+    { icon: '👋', title: 'Win-back Journey', keys: ['crm.winback_enabled', 'crm.winback_days_min', 'crm.winback_days_max', 'crm.winback_min_cups'] },
+    { icon: '🎂', title: 'Birthday Journey', keys: ['crm.birthday_enabled', 'crm.birthday_reward_text', 'crm.reward_cap_amount'] },
+    { icon: '📝', title: 'GTKY ต้อนรับสมาชิกใหม่', keys: ['gtky_welcome.enabled', 'gtky_welcome.category_name'] },
+    { icon: '🎟️', title: 'แลกแต้มสะสม 10 แก้ว (Passport)', keys: ['passport.redemption_enabled', 'passport.unlock_notify_enabled'] },
+  ];
 
   async function loadSettings() {
     const app = document.getElementById('app');
-    const { data, error } = await sb
-      .from('system_settings')
-      .select('*')
-      .order('category', { ascending: false })
-      .order('key', { ascending: true });
+    const { data, error } = await sb.from('system_settings').select('*');
 
     if (error) {
       app.innerHTML = `<div class="empty">โหลดไม่สำเร็จ: ${error.message}</div>`;
@@ -77,20 +85,23 @@
       return;
     }
 
-    const grouped = {};
-    for (const row of data) {
-      if (!grouped[row.category]) grouped[row.category] = [];
-      grouped[row.category].push(row);
-    }
+    const byKey = {};
+    data.forEach(row => { byKey[row.key] = row; });
+    const usedKeys = new Set();
 
     app.innerHTML = '';
-    for (const [category, rows] of Object.entries(grouped)) {
-      const label = document.createElement('div');
-      label.className = 'section-label';
-      label.textContent = CATEGORY_LABELS[category] || category;
-      app.appendChild(label);
 
-      rows.forEach(row => app.appendChild(renderCard(row)));
+    GROUPS.forEach(group => {
+      const rows = group.keys.map(k => byKey[k]).filter(Boolean);
+      rows.forEach(r => usedKeys.add(r.key));
+      if (!rows.length) return; // กลุ่มนี้ยังไม่มี setting ไหนอยู่ในระบบเลย ข้ามไป
+      app.appendChild(renderGroup(`${group.icon} ${group.title}`, rows));
+    });
+
+    // setting ที่เหลือ (ยังไม่ได้จัดกลุ่มไว้) รวมเป็น "อื่นๆ" ท้ายสุด กันตกหล่น
+    const leftover = data.filter(row => !usedKeys.has(row.key));
+    if (leftover.length) {
+      app.appendChild(renderGroup('🔧 อื่นๆ', leftover));
     }
 
     const note = document.createElement('div');
@@ -99,19 +110,32 @@
     app.appendChild(note);
   }
 
-  function renderCard(row) {
-    const card = document.createElement('div');
-    card.className = `card ${row.category === 'feature_flag' ? 'flag' : 'threshold'}`;
+  function renderGroup(title, rows) {
+    const group = document.createElement('div');
+    group.className = 'group';
+
+    const head = document.createElement('div');
+    head.className = 'group-head';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'group-title';
+    titleEl.textContent = title;
+    head.appendChild(titleEl);
+    group.appendChild(head);
+
+    rows.forEach(row => group.appendChild(renderItem(row)));
+    return group;
+  }
+
+  function renderItem(row) {
+    const item = document.createElement('div');
+    item.className = 'item';
 
     const top = document.createElement('div');
     top.className = 'row-top';
-
     const label = document.createElement('div');
     label.className = 'label';
     label.textContent = row.label;
     top.appendChild(label);
-
-    let getValue, controlEl;
 
     if (row.category === 'feature_flag') {
       const toggle = document.createElement('label');
@@ -124,21 +148,18 @@
       toggle.appendChild(input);
       toggle.appendChild(slider);
       top.appendChild(toggle);
-      getValue = () => input.checked;
-      controlEl = input;
-      // toggle auto-saves ทันทีที่กด ไม่ต้องกดปุ่มบันทึกแยก
-      input.addEventListener('change', () => saveSetting(row.key, getValue(), null));
+      // toggle auto-save ทันทีที่กด ไม่ต้องกดปุ่มบันทึกแยก
+      input.addEventListener('change', () => saveSetting(row.key, input.checked, null));
     } else {
       top.appendChild(document.createElement('div')); // spacer
     }
-
-    card.appendChild(top);
+    item.appendChild(top);
 
     if (row.description) {
       const desc = document.createElement('div');
       desc.className = 'desc';
       desc.textContent = row.description;
-      card.appendChild(desc);
+      item.appendChild(desc);
     }
 
     if (row.category === 'threshold') {
@@ -153,10 +174,26 @@
       btn.addEventListener('click', () => saveSetting(row.key, Number(input.value), btn));
       numRow.appendChild(input);
       numRow.appendChild(btn);
-      card.appendChild(numRow);
+      item.appendChild(numRow);
     }
 
-    return card;
+    if (row.category === 'text') {
+      const textRow = document.createElement('div');
+      textRow.className = 'text-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = typeof row.value === 'string' ? row.value : (row.value || '');
+      input.placeholder = 'พิมพ์ข้อความ...';
+      const btn = document.createElement('button');
+      btn.className = 'btn-save';
+      btn.textContent = 'บันทึก';
+      btn.addEventListener('click', () => saveSetting(row.key, input.value, btn));
+      textRow.appendChild(input);
+      textRow.appendChild(btn);
+      item.appendChild(textRow);
+    }
+
+    return item;
   }
 
   async function saveSetting(key, value, btnEl) {
