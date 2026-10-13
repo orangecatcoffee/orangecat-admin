@@ -444,201 +444,149 @@ loadPendingApprovals();
 loadSettings();
 
 // ============================================================
-// ☕ แท็บ "หน้าเมล็ดกาแฟ" — จัดการการ์ดเมล็ด + ราคาที่ลูกค้าเห็น
-// ชื่อ/สต็อก/ราคาเพิ่ม = ingredients (single source of truth เดียวกับหน้าสั่ง) · รูป/โน้ตรส/ประเภท = bean_profiles
+// ☕ แท็บ "หน้าเมล็ดกาแฟ" — จัดการการ์ดเมล็ด (ตรงกับที่ลูกค้าเห็น: Roast level / Taste notes / Body / Recommend drinks / Price)
+// ชื่อ/สต็อก/ราคาเพิ่ม = ingredients (ค่าเดียวกับหน้าสั่ง) · รูป/โน้ตรส/ประเภท = bean_profiles · Houseblend = การ์ดผสม (ซ่อนส่วนผสมจากลูกค้า)
 // ============================================================
 const BEANS_PAGE_URL = 'https://orangecat-liff.vercel.app/beans.html';
-const BEAN_DOSE_G = 20; // เกณฑ์เดียวกับ order.html / brew.html
-const B_TONES = [
-  { id: 'choc',   label: 'ช็อกโกแลต · นัท' },
-  { id: 'fruit',  label: 'ผลไม้' },
-  { id: 'citrus', label: 'ซิตรัส' },
-  { id: 'floral', label: 'ดอกไม้' },
-  { id: 'sweet',  label: 'หวาน · ครีมมี่' },
-];
-const B_STATUS = [{ id: '', label: 'ไม่ระบุ' }, { id: 'store', label: 'เมล็ดประจำร้าน' }, { id: 'limited', label: 'Limited' }];
+const BEAN_DOSE_G = 20; // เกณฑ์เดียวกับหน้าสั่ง
+const B_ROASTS = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
+const B_BODIES = ['Strong', 'Easy drinking', 'Light'];
+const B_TONES = [['choc', 'ช็อกโกแลต · นัท'], ['fruit', 'ผลไม้'], ['citrus', 'ซิตรัส'], ['floral', 'ดอกไม้'], ['sweet', 'หวาน · ครีมมี่']];
+const B_STATUS = [['', 'ไม่ระบุ'], ['store', 'เมล็ดประจำร้าน'], ['limited', 'Limited']];
 const B_RANK = { store: 0, limited: 1, '': 2 };
 
-const bs = { loaded: false, err: '', ing: [], prof: {}, groups: [], refs: [], open: null, draft: null, onlyBad: false, busy: false, previewOpen: false, previewGroup: 'standard', msg: '' };
-
+const bs = { loaded: false, err: '', items: [], settingRows: [], open: null, draft: null, onlyBad: false, busy: false, previewOpen: false, msg: '' };
 const bEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const bNow = () => new Date().toISOString();
 
-function bMissing(r) {
-  const p = r.p || {};
+function bMissing(p) {
+  if (!p) return ['ยังไม่มีโปรไฟล์'];
   const m = [];
   if (!p.photo_url) m.push('รูป');
-  if (!p.roast) m.push('Roast');
-  if (!p.body) m.push('Body');
+  if (!p.roast) m.push('Roast level');
   if (!p.notes) m.push('Taste notes');
+  if (!p.body) m.push('Body');
+  if (!(p.recommend && p.recommend.length)) m.push('Recommend drinks');
   if (!(p.tones && p.tones.length)) m.push('โทนรส');
   return m;
 }
-function bRows() {
-  const rows = bs.ing.map(i => ({ i, p: bs.prof[i.id] || null }));
-  rows.forEach(r => { r.missing = r.p ? bMissing(r) : ['ยังไม่มีโปรไฟล์']; });
+function bSorted() {
+  const rows = bs.items.map(r => Object.assign({}, r, { missing: bMissing(r.p) }));
   rows.sort((a, b) => {
     if (!!a.p !== !!b.p) return a.p ? -1 : 1;
     const sa = a.p ? B_RANK[a.p.status || ''] : 9, sb2 = b.p ? B_RANK[b.p.status || ''] : 9;
-    return (sa - sb2) || ((a.p ? a.p.sort_order : 0) - (b.p ? b.p.sort_order : 0)) || String(a.i.name).localeCompare(String(b.i.name));
+    return (sa - sb2) || ((a.p ? a.p.sort_order : 0) - (b.p ? b.p.sort_order : 0)) || String(a.name).localeCompare(String(b.name));
   });
   return rows;
 }
-function bCupPrices(r) {
-  // ราคาแก้วที่ลูกค้าแต่ละกลุ่มราคาจะเห็น = (ราคากลาง − ส่วนลดกลุ่ม) + ราคาเพิ่มของเมล็ด
-  const ref = bs.refs[0];
-  if (!ref) return '';
-  const sur = Number(r.i.customer_bean_surcharge) || 0;
-  return bs.groups.map(g => `${bEsc(g.label_th)} ฿${Math.max(0, ref.price - (Number(g.discount_per_cup) || 0)) + sur}`).join(' · ') + ` <span style="color:#A8876F">(${bEsc(ref.name)})</span>`;
-}
 
 async function loadBeansTab() {
-  const wrap = document.getElementById('beansWrap');
-  wrap.innerHTML = '<div class="loading">กำลังโหลด...</div>';
+  document.getElementById('beansWrap').innerHTML = '<div class="loading">กำลังโหลด...</div>';
   try {
-    const [ing, prof, grp, st] = await Promise.all([
-      sb.from('ingredients').select('id, name, active, stock_quantity, customer_bean_surcharge').eq('category', 'coffee_bean').eq('active', true).order('name'),
+    const [ing, prof, st] = await Promise.all([
+      sb.from('ingredients').select('id, name, stock_quantity, customer_bean_surcharge').eq('category', 'coffee_bean').eq('active', true).order('name'),
       sb.from('bean_profiles').select('*'),
-      sb.from('price_groups').select('key, label_th, discount_per_cup').eq('active', true).order('sort_order'),
       sb.from('system_settings').select('*').like('key', 'beans_page.%'),
     ]);
     if (ing.error) throw ing.error;
     if (prof.error) throw prof.error;
-    bs.ing = ing.data || [];
-    bs.prof = {}; (prof.data || []).forEach(p => { bs.prof[p.ingredient_id] = p; });
-    bs.groups = grp.data || [];
+    const ingMap = {}; (ing.data || []).forEach(i => { ingMap[i.id] = i; });
+    const byIng = {}; (prof.data || []).forEach(p => { if (p.ingredient_id) byIng[p.ingredient_id] = p; });
+    bs.items = (ing.data || []).map(i => ({ key: i.id, blend: false, p: byIng[i.id] || null, name: i.name, stock: Number(i.stock_quantity) || 0, sur: Number(i.customer_bean_surcharge) || 0, ingId: i.id }));
+    (prof.data || []).filter(p => !p.ingredient_id).forEach(p => {
+      const ms = (p.blend_member_ids || []).map(id => ingMap[id]).filter(Boolean);
+      bs.items.push({ key: p.id, blend: true, p, name: p.display_name || 'Blend', members: ms.map(m => m.name),
+        stock: ms.length ? Math.min.apply(null, ms.map(m => Number(m.stock_quantity) || 0)) : 0,
+        sur: ms.length ? Math.max.apply(null, ms.map(m => Number(m.customer_bean_surcharge) || 0)) : 0, complete: ms.length === (p.blend_member_ids || []).length && ms.length > 0 });
+    });
     bs.settingRows = (st.data || []).sort((a, b) => a.key.localeCompare(b.key));
-    const names = bs.settingRows.filter(r => /ref_menu_/.test(r.key)).map(r => r.value).filter(x => typeof x === 'string' && x.trim());
-    bs.refs = [];
-    if (names.length) {
-      const { data: mi } = await sb.from('menu_items').select('name, price').in('name', names);
-      bs.refs = names.map(n => (mi || []).find(m => m.name === n)).filter(m => m && Number(m.price) > 0).map(m => ({ name: m.name, price: Number(m.price) }));
-    }
     bs.err = '';
   } catch (e) { bs.err = (e && e.message) || 'โหลดไม่สำเร็จ'; }
   bs.loaded = true;
   renderBeansTab();
 }
 
+function bChips(items, cur, act, multi) {
+  return items.map(([v, l]) => `<span class="bopt ${multi ? ((cur || []).includes(v) ? 'on' : '') : (cur === v ? 'on' : '')}" data-bact="${act}" data-v="${bEsc(v)}">${bEsc(l)}</span>`).join('');
+}
 function bFormHTML(r) {
-  const d = bs.draft, miss = x => (x ? '' : ' miss');
-  const st = d.status || '';
+  const d = bs.draft, miss = x => (x ? '' : 'miss');
   return `<div class="bform">
     <div class="bfield"><label>รูปประกอบการ์ด</label>
-      <div class="bpic${miss(d.photo_url)}">
-        <div class="bpv" style="${d.photo_url ? `background-image:url('${bEsc(d.photo_url)}')` : ''}"></div>
-        <div class="bpb">
-          <label class="bbtn file">${d.photo_url ? 'เปลี่ยนรูป' : 'เลือกรูป'}<input type="file" accept="image/*" data-bact="photo"></label>
-          ${d.photo_url ? '<button class="bbtn" data-bact="nophoto" type="button">เอารูปออก</button>' : ''}
-        </div>
-      </div>
-      <div class="bhint">${bs.busy ? 'กำลังอัปโหลดรูป…' : 'ระบบย่อรูปให้อัตโนมัติ · รูปที่สื่อรสโน้ต เช่น ผลไม้ ช็อกโกแลต ดอกไม้'}</div>
-    </div>
-    <div class="bfield"><label>ประเภทเมล็ด</label>
-      <div class="bopts">${B_STATUS.map(s => `<span class="bopt ${st === s.id ? 'on' : ''}" data-bact="status" data-v="${s.id}">${bEsc(s.label)}</span>`).join('')}</div>
-      <div class="bopts" style="margin-top:8px">
-        <span class="bopt ${d.house_pick ? 'on' : ''}" data-bact="house">⭐ House Pick (เมล็ดแนะนำ)</span>
-        <span class="bopt ${d.visible ? 'on' : ''}" data-bact="vis">แสดงในหน้าลูกค้า</span>
-      </div>
-    </div>
-    <div class="bfield"><label>Roast</label><input type="text" data-bf="roast" list="dl-roast" value="${bEsc(d.roast)}" class="${miss(d.roast).trim()}" placeholder="เช่น Light-Medium"></div>
-    <div class="bfield"><label>Body</label><input type="text" data-bf="body" list="dl-body" value="${bEsc(d.body)}" class="${miss(d.body).trim()}" placeholder="เช่น Medium"></div>
-    <div class="bfield"><label>Taste notes</label><input type="text" data-bf="notes" value="${bEsc(d.notes)}" class="${miss(d.notes).trim()}" placeholder="เช่น Chocolate, Nutty, Caramel"></div>
-    <div class="bfield"><label>โทนรส (ใช้ในตัวกรองด้านบนของหน้าลูกค้า)</label>
-      <div class="bopts${(d.tones || []).length ? '' : ' miss'}">${B_TONES.map(t => `<span class="bopt ${(d.tones || []).includes(t.id) ? 'on' : ''}" data-bact="tone" data-v="${t.id}">${bEsc(t.label)}</span>`).join('')}</div>
-    </div>
-    <div class="bfield"><label>ราคาเพิ่มของเมล็ดนี้ (บาท/แก้ว)</label>
-      <input type="number" inputmode="numeric" data-bf="surcharge" value="${d.surcharge == null ? '' : bEsc(d.surcharge)}" style="width:110px">
-      <div class="bhint">ค่าเดียวกับที่หน้าสั่งของลูกค้าใช้จริง (0 = ไม่บวกเพิ่ม) — แก้แล้วมีผลกับราคาที่ลูกค้าจ่ายทันที</div>
-    </div>
-    <div class="bfield"><label>ลำดับ (เลขน้อย = ขึ้นก่อน ในกลุ่มเดียวกัน)</label>
-      <input type="number" inputmode="numeric" data-bf="sort_order" value="${bEsc(d.sort_order)}" style="width:110px">
-    </div>
+      <div class="bpic ${miss(d.photo_url)}"><div class="bpv" style="${d.photo_url ? `background-image:url('${bEsc(d.photo_url)}')` : ''}"></div>
+        <div class="bpb"><label class="bbtn file">${d.photo_url ? 'เปลี่ยนรูป' : 'เลือกรูป'}<input type="file" accept="image/*" data-bact="photo"></label>
+          ${d.photo_url ? '<button class="bbtn" data-bact="nophoto" type="button">เอารูปออก</button>' : ''}</div></div>
+      <div class="bhint">${bs.busy ? 'กำลังอัปโหลดรูป…' : 'ระบบย่อรูปให้อัตโนมัติ · รูปสื่อรสโน้ต เช่น ผลไม้ ช็อกโกแลต ดอกไม้'}</div></div>
+    <div class="bfield"><label>ป้ายมุมขวาบนของการ์ด</label><div class="bopts">${bChips(B_STATUS, d.status || '', 'status')}</div>
+      <div class="bopts" style="margin-top:8px"><span class="bopt ${d.visible ? 'on' : ''}" data-bact="vis">แสดงในหน้าลูกค้า</span></div></div>
+    <div class="bfield"><label>Roast level</label><div class="bopts ${miss(d.roast)}">${bChips(B_ROASTS.map(x => [x, x]), d.roast, 'roast')}</div></div>
+    <div class="bfield"><label>Taste notes</label><input type="text" data-bf="notes" value="${bEsc(d.notes)}" class="${miss(d.notes)}" placeholder="เช่น Chocolate, Nutty, Caramel"></div>
+    <div class="bfield"><label>Body</label><div class="bopts ${miss(d.body)}">${bChips(B_BODIES.map(x => [x, x]), d.body, 'body')}</div></div>
+    <div class="bfield"><label>Recommend drinks (คั่นด้วย ,)</label><input type="text" data-bf="recommend" list="dl-rec" value="${bEsc(d.recommend)}" class="${miss(d.recommend && d.recommend.trim())}" placeholder="เช่น Latte, Americano">
+      <datalist id="dl-rec"><option value="Latte"><option value="Americano"><option value="Dirty"><option value="Coconut Latte"><option value="Cold Brew"></datalist></div>
+    <div class="bfield"><label>โทนรส (ใช้เป็นตัวกรองในหน้าลูกค้า)</label><div class="bopts ${(d.tones || []).length ? '' : 'miss'}">${bChips(B_TONES, d.tones, 'tone', true)}</div></div>
+    <div class="bfield"><label>Price — ราคาเพิ่มของเมล็ด (บาท/แก้ว)</label>
+      ${r.blend ? `<div class="bhint">คิดจากเมล็ดที่ผสม (ค่าสูงสุดของส่วนผสม) = ${r.sur}฿ · ลูกค้าไม่เห็นส่วนผสม</div>` :
+        `<input type="number" inputmode="numeric" data-bf="surcharge" value="${bEsc(d.surcharge)}" style="width:110px"><div class="bhint">ค่าเดียวกับที่หน้าสั่งใช้จริง (0 = ไม่บวกเพิ่ม) — แก้แล้วมีผลกับราคาที่ลูกค้าจ่ายทันที</div>`}</div>
+    <div class="bfield"><label>ลำดับ (เลขน้อย = ขึ้นก่อน ในกลุ่มเดียวกัน)</label><input type="number" inputmode="numeric" data-bf="sort_order" value="${bEsc(d.sort_order)}" style="width:110px"></div>
     <div class="bacts"><button class="btn-save" data-bact="save" type="button">บันทึก</button><button class="bbtn" data-bact="cancel" type="button">ยกเลิก</button></div>
-    <datalist id="dl-roast"><option value="Light"><option value="Light-Medium"><option value="Medium"><option value="Medium-Dark"><option value="Dark"></datalist>
-    <datalist id="dl-body"><option value="Light"><option value="Medium"><option value="Full"></datalist>
   </div>`;
 }
 
 function renderBeansTab() {
   const wrap = document.getElementById('beansWrap');
   if (!bs.loaded) return;
-  const rows = bRows();
-  const bad = rows.filter(r => r.missing.length).length;
-  const shown = bs.onlyBad ? rows.filter(r => r.missing.length || (bs.open === r.i.id)) : rows;
-  const profRows = rows.filter(r => r.p);
-  const html = [];
-  html.push(`<div class="group audience-customer"><div class="group-head"><div class="group-title">☕ หน้าเมล็ดกาแฟ (ลูกค้า)</div><span class="audience-tag customer">📤 ลูกค้าเห็น</span></div>
-    <div class="item"><div class="desc">การ์ดเมล็ดที่ลูกค้าเห็นในหน้าเลือกเมล็ด — ชื่อ/สต็อก/ราคาเพิ่มดึงจากสต็อกจริง ส่วนรูป โน้ตรส และประเภท (ประจำร้าน/Limited) แก้ที่นี่ ลูกค้าเห็นเมล็ดเมื่อเปิดแสดง และสต็อกเหลือตั้งแต่ ${BEAN_DOSE_G} กรัมขึ้นไป (เกณฑ์เดียวกับหน้าสั่ง)</div>
-      <div class="bsum"><span>ข้อมูลครบ <b>${rows.length - bad}</b> / ${rows.length} รายการ</span>
-      <label><input type="checkbox" data-bact="onlybad" ${bs.onlyBad ? 'checked' : ''}> แสดงเฉพาะที่ยังไม่ครบ</label></div>
+  const rows = bSorted(), bad = rows.filter(r => r.missing.length).length;
+  const shown = bs.onlyBad ? rows.filter(r => r.missing.length || bs.open === r.key) : rows;
+  const ordered = rows.filter(r => r.p);
+  const h = [];
+  h.push(`<div class="group audience-customer"><div class="group-head"><div class="group-title">☕ หน้าเมล็ดกาแฟ (ลูกค้า)</div><span class="audience-tag customer">📤 ลูกค้าเห็น</span></div>
+    <div class="item"><div class="desc">การ์ดเมล็ดที่ลูกค้าเห็นในแท็บ BEANS — ชื่อ/สต็อก/ราคาเพิ่มดึงจากสต็อกจริง ส่วนรูป Roast level Taste notes Body Recommend drinks และป้ายมุมขวาบน แก้ที่นี่ เมล็ดจะโชว์เมื่อเปิดแสดงและสต็อกตั้งแต่ ${BEAN_DOSE_G} กรัมขึ้นไป</div>
+      <div class="bsum"><span>ข้อมูลครบ <b>${rows.length - bad}</b> / ${rows.length} รายการ</span><label><input type="checkbox" data-bact="onlybad" ${bs.onlyBad ? 'checked' : ''}> แสดงเฉพาะที่ยังไม่ครบ</label></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn-save" data-bact="preview" type="button">👁 ดูหน้าที่ลูกค้าเห็น</button><a class="bbtn" href="${BEANS_PAGE_URL}" target="_blank" rel="noopener" style="text-decoration:none">เปิดหน้าจริง ↗</a></div>
-      ${bs.previewOpen ? `<div class="bprev"><div class="bopts" style="margin:10px 0 8px">${bs.groups.map(g => `<span class="bopt ${bs.previewGroup === g.key ? 'on' : ''}" data-bact="pgroup" data-v="${bEsc(g.key)}">มุมมอง: ${bEsc(g.label_th)}${Number(g.discount_per_cup) > 0 ? ' (−฿' + Number(g.discount_per_cup) + ')' : ''}</span>`).join('')}</div>
-        <iframe title="ตัวอย่างหน้าลูกค้า" src="${BEANS_PAGE_URL}?g=${encodeURIComponent(bs.previewGroup)}&_=${Date.now()}" loading="lazy"></iframe></div>` : ''}
+      ${bs.previewOpen ? `<div class="bprev" style="margin-top:10px"><iframe title="ตัวอย่างหน้าลูกค้า" src="${BEANS_PAGE_URL}?_=${Date.now()}" loading="lazy"></iframe></div>` : ''}
     </div></div>`);
-  html.push('<div id="beansSettings"></div>');
-  if (bs.err) html.push(`<div class="empty">โหลดไม่สำเร็จ: ${bEsc(bs.err)}</div>`);
-  html.push('<div class="brows">');
+  h.push('<div id="beansSettings"></div>');
+  if (bs.err) h.push(`<div class="empty">โหลดไม่สำเร็จ: ${bEsc(bs.err)}</div>`);
+  h.push('<div class="brows">');
   shown.forEach(r => {
-    const open = bs.open === r.i.id, p = r.p;
-    const stock = Number(r.i.stock_quantity) || 0, sur = Number(r.i.customer_bean_surcharge) || 0;
-    const seen = p && p.visible && stock >= BEAN_DOSE_G;
-    const badges = [
-      p && p.status === 'store' ? '<span class="bbd store">ประจำร้าน</span>' : '',
-      p && p.status === 'limited' ? '<span class="bbd limited">Limited</span>' : '',
-      p && p.house_pick ? '<span class="bbd house">⭐ แนะนำ</span>' : '',
-    ].join('');
-    const ordered = rows.filter(x => x.p);
-    const idx = ordered.indexOf(r);
+    const p = r.p, open = bs.open === r.key;
+    const live = p && p.visible && r.stock >= BEAN_DOSE_G && (!r.blend || r.complete);
+    const idx = ordered.findIndex(x => x.key === r.key);
     const canUp = p && idx > 0 && (ordered[idx - 1].p.status || '') === (p.status || '');
     const canDn = p && idx >= 0 && idx < ordered.length - 1 && (ordered[idx + 1].p.status || '') === (p.status || '');
-    html.push(`<div class="brow${r.missing.length ? ' bad' : ''}">
-      <div class="brow-head">
-        <button class="brow-main" data-bact="toggle" data-id="${bEsc(r.i.id)}" type="button">
-          <span class="bth" style="${p && p.photo_url ? `background-image:url('${bEsc(p.photo_url)}')` : ''}"></span>
-          <span class="bbody"><div class="bname">${bEsc(r.i.name)} ${badges}</div>
-            <div class="bmeta">สต็อก ${stock} g${sur > 0 ? ' · +' + sur + '฿' : ''} · ${seen ? '<span class="bok">👁 ลูกค้าเห็น</span>' : '<span class="bno">🙈 ลูกค้าไม่เห็น' + (p && p.visible && stock < BEAN_DOSE_G ? ' (สต็อกต่ำกว่า ' + BEAN_DOSE_G + 'g)' : p ? ' (ซ่อนอยู่)' : '') + '</span>'}</div>
-            ${bs.refs.length ? `<div class="bmeta">${bCupPrices(r)}</div>` : ''}
-            <div class="bmeta ${r.missing.length ? 'bmiss' : 'bok'}">${r.missing.length ? 'ขาด: ' + r.missing.map(bEsc).join(' · ') : '✓ ข้อมูลครบ'}</div></span>
-        </button>
-        <div class="bmv"><button data-bact="up" data-id="${bEsc(r.i.id)}" ${canUp ? '' : 'disabled'} type="button" aria-label="เลื่อนขึ้น">▲</button><button data-bact="down" data-id="${bEsc(r.i.id)}" ${canDn ? '' : 'disabled'} type="button" aria-label="เลื่อนลง">▼</button></div>
-      </div>
-      ${open ? bFormHTML(r) : ''}
-    </div>`);
+    const badges = (p && p.status === 'store' ? '<span class="bbd store">ประจำร้าน</span>' : '') + (p && p.status === 'limited' ? '<span class="bbd limited">Limited</span>' : '') + (r.blend ? '<span class="bbd house">Blend</span>' : '');
+    h.push(`<div class="brow${r.missing.length ? ' bad' : ''}"><div class="brow-head">
+      <button class="brow-main" data-bact="toggle" data-id="${bEsc(r.key)}" type="button"><span class="bth" style="${p && p.photo_url ? `background-image:url('${bEsc(p.photo_url)}')` : ''}"></span>
+        <span class="bbody"><div class="bname">${bEsc(r.name)} ${badges}</div>
+          <div class="bmeta">${r.blend ? 'ผสมจาก ' + bEsc((r.members || []).join(' + ')) + ' (ลูกค้าไม่เห็น) · ' : ''}สต็อก ${r.stock} g · Price ${r.sur > 0 ? '+' + r.sur + '฿' : 'ไม่บวกเพิ่ม'} · ${live ? '<span class="bok">👁 ลูกค้าเห็น</span>' : '<span class="bno">🙈 ลูกค้าไม่เห็น' + (p && p.visible && r.stock < BEAN_DOSE_G ? ' (สต็อกต่ำกว่า ' + BEAN_DOSE_G + 'g)' : p ? ' (ซ่อนอยู่)' : '') + '</span>'}</div>
+          <div class="bmeta ${r.missing.length ? 'bmiss' : 'bok'}">${r.missing.length ? 'ขาด: ' + r.missing.map(bEsc).join(' · ') : '✓ ข้อมูลครบ'}</div></span></button>
+      <div class="bmv"><button data-bact="up" data-id="${bEsc(r.key)}" ${canUp ? '' : 'disabled'} type="button" aria-label="เลื่อนขึ้น">▲</button><button data-bact="down" data-id="${bEsc(r.key)}" ${canDn ? '' : 'disabled'} type="button" aria-label="เลื่อนลง">▼</button></div>
+    </div>${open ? bFormHTML(r) : ''}</div>`);
   });
-  html.push('</div>');
-  html.push('<div class="footer-note">แถบสีแดงอ่อน = ข้อมูลยังไม่ครบ · ลำดับหน้าลูกค้า: เมล็ดประจำร้าน → Limited → อื่นๆ</div>');
-  wrap.innerHTML = html.join('');
-  // การ์ดตั้งค่า (ใช้ renderGroup เดิมของหน้า Control Panel)
+  h.push('</div><div class="footer-note">แถบสีแดงอ่อน = ข้อมูลยังไม่ครบ · ลำดับหน้าลูกค้า: ป้ายประจำร้าน → Limited → อื่นๆ</div>');
+  wrap.innerHTML = h.join('');
   const host = document.getElementById('beansSettings');
-  if (host && bs.settingRows && bs.settingRows.length) host.appendChild(renderGroup('🏷️ ราคาที่ลูกค้าเห็น', bs.settingRows, 'customer'));
+  if (host && bs.settingRows.length) host.appendChild(renderGroup('🏷️ ตั้งค่าหน้าเมล็ด', bs.settingRows, 'customer'));
   if (bs.msg) { const m = document.createElement('div'); m.className = 'bmsg'; m.textContent = bs.msg; wrap.prepend(m); }
 }
 
-// ---------- actions ----------
-function bStartEdit(id) {
-  const i = bs.ing.find(x => x.id === id); if (!i) return;
-  const p = bs.prof[id];
+function bStartEdit(key) {
+  const r = bs.items.find(x => x.key === key); if (!r) return;
+  const p = r.p || {};
   bs.draft = {
-    ingredient_id: id, isNew: !p,
-    photo_url: p ? p.photo_url : null, photo_pos: p ? p.photo_pos : null,
-    roast: p ? p.roast || '' : '', body: p ? p.body || '' : '', notes: p ? p.notes || '' : '',
-    tones: p ? (p.tones || []).slice() : [], status: p ? p.status || '' : '',
-    house_pick: p ? !!p.house_pick : false, visible: p ? !!p.visible : false, // โปรไฟล์ใหม่ปิดไว้ก่อน จนกว่าข้อมูลจะพร้อม
-    sort_order: p ? p.sort_order : (Math.max(0, ...Object.values(bs.prof).map(x => x.sort_order || 0)) + 10),
-    surcharge: Number(i.customer_bean_surcharge) || 0, origSurcharge: Number(i.customer_bean_surcharge) || 0,
+    key, blend: r.blend, ingId: r.ingId, pid: p.id || null, photo_url: p.photo_url || null, photo_pos: p.photo_pos || null,
+    roast: p.roast || '', body: p.body || '', notes: p.notes || '', recommend: (p.recommend || []).join(', '),
+    tones: (p.tones || []).slice(), status: p.status || '', house_pick: !!p.house_pick, visible: r.p ? !!p.visible : false, // โปรไฟล์ใหม่ปิดไว้ก่อนจนกว่าข้อมูลพร้อม
+    sort_order: r.p ? p.sort_order : (Math.max(0, ...bs.items.map(x => (x.p && x.p.sort_order) || 0)) + 10), surcharge: r.sur, origSurcharge: r.sur,
   };
-  bs.open = id;
+  bs.open = key;
 }
 function bResizeBlob(file, max) {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      c.toBlob(b => b ? res(b) : rej(new Error('แปลงรูปไม่สำเร็จ')), 'image/jpeg', 0.82);
-    };
+    img.onload = () => { const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error('แปลงรูปไม่สำเร็จ')), 'image/jpeg', 0.82); };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('เปิดรูปไม่ได้')); };
     img.src = url;
   });
@@ -647,11 +595,10 @@ async function bUploadPhoto(file) {
   if (!file || !bs.draft) return;
   bs.busy = true; renderBeansTab();
   try {
-    const blob = await bResizeBlob(file, 900);
-    const path = `beans/${bs.draft.ingredient_id}-${Date.now()}.jpg`;
+    const blob = await bResizeBlob(file, 900), path = `beans/${bs.draft.key}-${Date.now()}.jpg`;
     const { error } = await sb.storage.from('menu-images').upload(path, blob, { contentType: 'image/jpeg' });
     if (error) throw error;
-    bs.draft.photo_url = sb.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
+    bs.draft.photo_url = sb.storage.from('menu-images').getPublicUrl(path).data.publicUrl; bs.draft.photo_pos = null;
     bs.msg = 'อัปโหลดรูปแล้ว — กดบันทึกเพื่อยืนยัน';
   } catch (e) { bs.msg = 'อัปโหลดรูปไม่สำเร็จ: ' + ((e && e.message) || ''); }
   bs.busy = false; renderBeansTab();
@@ -660,66 +607,63 @@ async function bSave() {
   const d = bs.draft; if (!d) return;
   const clean = x => { const s = String(x == null ? '' : x).trim(); return s || null; };
   const sur = d.surcharge === '' || d.surcharge == null ? 0 : Number(d.surcharge);
-  if (isNaN(sur) || sur < 0) { alert('ราคาเพิ่มต้องเป็นตัวเลข 0 ขึ้นไป'); return; }
-  if (sur !== d.origSurcharge && !confirm(`เปลี่ยนราคาเพิ่มของเมล็ดนี้จาก ${d.origSurcharge}฿ เป็น ${sur}฿ ต่อแก้ว?\nมีผลกับราคาที่ลูกค้าจ่ายในหน้าสั่งทันที`)) return;
-  const row = {
-    ingredient_id: d.ingredient_id, photo_url: d.photo_url || null, photo_pos: d.photo_pos || null,
-    roast: clean(d.roast), body: clean(d.body), notes: clean(d.notes), tones: d.tones || [], status: d.status || '',
-    house_pick: !!d.house_pick, visible: !!d.visible, sort_order: Number(d.sort_order) || 0, updated_at: new Date().toISOString(),
-  };
-  const { error } = await sb.from('bean_profiles').upsert(row, { onConflict: 'ingredient_id' });
+  if (!d.blend) {
+    if (isNaN(sur) || sur < 0) { alert('ราคาเพิ่มต้องเป็นตัวเลข 0 ขึ้นไป'); return; }
+    if (sur !== d.origSurcharge && !confirm(`เปลี่ยนราคาเพิ่มของเมล็ดนี้จาก ${d.origSurcharge}฿ เป็น ${sur}฿ ต่อแก้ว?\nมีผลกับราคาที่ลูกค้าจ่ายในหน้าสั่งทันที`)) return;
+  }
+  const seen = {}, rec = String(d.recommend || '').split(',').map(x => x.trim()).filter(x => x && !seen[x.toLowerCase()] && (seen[x.toLowerCase()] = 1));
+  const row = { photo_url: d.photo_url || null, photo_pos: d.photo_pos || null, roast: clean(d.roast), body: clean(d.body), notes: clean(d.notes), recommend: rec,
+    tones: d.tones || [], status: d.status || '', house_pick: !!d.house_pick, visible: !!d.visible, sort_order: Number(d.sort_order) || 0, updated_at: bNow() };
+  const q = d.blend ? sb.from('bean_profiles').update(row).eq('id', d.pid) : sb.from('bean_profiles').upsert(Object.assign({ ingredient_id: d.ingId }, row), { onConflict: 'ingredient_id' });
+  const { error } = await q;
   if (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
-  if (sur !== d.origSurcharge) {
-    const { error: e2 } = await sb.from('ingredients').update({ customer_bean_surcharge: sur, updated_at: new Date().toISOString() }).eq('id', d.ingredient_id);
-    if (e2) { alert('บันทึกโปรไฟล์แล้ว แต่แก้ราคาเพิ่มไม่สำเร็จ: ' + e2.message); }
+  if (!d.blend && sur !== d.origSurcharge) {
+    const { error: e2 } = await sb.from('ingredients').update({ customer_bean_surcharge: sur, updated_at: bNow() }).eq('id', d.ingId);
+    if (e2) alert('บันทึกโปรไฟล์แล้ว แต่แก้ราคาเพิ่มไม่สำเร็จ: ' + e2.message);
   }
   bs.open = null; bs.draft = null; bs.msg = '✓ บันทึกแล้ว';
   await loadBeansTab();
   setTimeout(() => { bs.msg = ''; const m = document.querySelector('.bmsg'); if (m) m.remove(); }, 2200);
 }
-async function bMove(id, dir) {
-  const ordered = bRows().filter(r => r.p);
-  const i = ordered.findIndex(r => r.i.id === id), j = i + dir;
+async function bMove(key, dir) {
+  const ordered = bSorted().filter(r => r.p), i = ordered.findIndex(r => r.key === key), j = i + dir;
   if (i < 0 || j < 0 || j >= ordered.length) return;
   const a = ordered[i].p, b = ordered[j].p;
   if ((a.status || '') !== (b.status || '')) return;
-  let sa = a.sort_order || 0, sb2 = b.sort_order || 0;
+  const sa = a.sort_order || 0; let sb2 = b.sort_order || 0;
   if (sa === sb2) sb2 = sa + (dir > 0 ? 1 : -1);
-  const r1 = await sb.from('bean_profiles').update({ sort_order: sb2, updated_at: new Date().toISOString() }).eq('ingredient_id', a.ingredient_id);
-  const r2 = await sb.from('bean_profiles').update({ sort_order: sa, updated_at: new Date().toISOString() }).eq('ingredient_id', b.ingredient_id);
-  if (r1.error || r2.error) alert('จัดลำดับไม่สำเร็จ: ' + ((r1.error || r2.error).message));
+  const r1 = await sb.from('bean_profiles').update({ sort_order: sb2, updated_at: bNow() }).eq('id', a.id);
+  const r2 = await sb.from('bean_profiles').update({ sort_order: sa, updated_at: bNow() }).eq('id', b.id);
+  if (r1.error || r2.error) alert('จัดลำดับไม่สำเร็จ: ' + (r1.error || r2.error).message);
   await loadBeansTab();
 }
 
 document.getElementById('beansWrap').addEventListener('click', e => {
   const t = e.target.closest('[data-bact]'); if (!t) return;
-  const a = t.dataset.bact, id = t.dataset.id, val = t.dataset.v;
+  const a = t.dataset.bact, id = t.dataset.id, v = t.dataset.v, d = bs.draft;
   if (a === 'photo') return;
   if (a === 'onlybad') { bs.onlyBad = t.checked; renderBeansTab(); return; }
-  const d = bs.draft;
   switch (a) {
     case 'toggle': if (bs.open === id) { bs.open = null; bs.draft = null; } else bStartEdit(id); renderBeansTab(); break;
     case 'cancel': bs.open = null; bs.draft = null; renderBeansTab(); break;
-    case 'status': d.status = val; renderBeansTab(); break;
-    case 'house': d.house_pick = !d.house_pick; renderBeansTab(); break;
+    case 'status': d.status = v; renderBeansTab(); break;
+    case 'roast': d.roast = d.roast === v ? '' : v; renderBeansTab(); break;
+    case 'body': d.body = d.body === v ? '' : v; renderBeansTab(); break;
     case 'vis': d.visible = !d.visible; renderBeansTab(); break;
-    case 'tone': { const s = new Set(d.tones || []); if (s.has(val)) s.delete(val); else s.add(val); d.tones = Array.from(s); renderBeansTab(); break; }
+    case 'tone': { const s = new Set(d.tones || []); if (s.has(v)) s.delete(v); else s.add(v); d.tones = Array.from(s); renderBeansTab(); break; }
     case 'nophoto': d.photo_url = null; renderBeansTab(); break;
     case 'save': bSave(); break;
     case 'up': bMove(id, -1); break;
     case 'down': bMove(id, 1); break;
     case 'preview': bs.previewOpen = !bs.previewOpen; renderBeansTab(); break;
-    case 'pgroup': bs.previewGroup = val; renderBeansTab(); break;
   }
 });
 document.getElementById('beansWrap').addEventListener('input', e => {
   const f = e.target.dataset && e.target.dataset.bf; if (!f || !bs.draft) return;
   bs.draft[f] = e.target.value;
-  if (f === 'roast' || f === 'body' || f === 'notes') e.target.classList.toggle('miss', !e.target.value.trim());
+  if (f === 'notes' || f === 'recommend') e.target.classList.toggle('miss', !e.target.value.trim());
 });
-document.getElementById('beansWrap').addEventListener('change', e => {
-  if (e.target.dataset && e.target.dataset.bact === 'photo') bUploadPhoto(e.target.files && e.target.files[0]);
-});
+document.getElementById('beansWrap').addEventListener('change', e => { if (e.target.dataset && e.target.dataset.bact === 'photo') bUploadPhoto(e.target.files && e.target.files[0]); });
 
 // ---------- tabs ----------
 let beansTabLoaded = false;
