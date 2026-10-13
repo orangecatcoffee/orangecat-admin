@@ -92,6 +92,7 @@
   .bhint { font-size: 11.5px; color: #A8876F; margin-top: 5px; line-height: 1.5; }
   .bacts { display: flex; gap: 8px; margin-top: 4px; }
   .bmsg { background: #E9F5EC; border: 1px solid #A9D4B3; color: #2F6B43; border-radius: 10px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+  .bdots { display: flex; gap: 10px; align-items: center; } .bdots span { font-size: 30px; line-height: 1; color: #C4401E; cursor: pointer; user-select: none; padding: 0 2px; } .bdots.miss { background: #FDE9E6; border-radius: 10px; padding: 2px 8px; width: fit-content; }
 </style>
 </head>
 <body>
@@ -450,12 +451,11 @@ loadSettings();
 const BEANS_PAGE_URL = 'https://orangecat-liff.vercel.app/beans.html';
 const BEAN_DOSE_G = 20; // เกณฑ์เดียวกับหน้าสั่ง
 const B_ROASTS = ['Light', 'Light-Medium', 'Medium', 'Medium-Dark', 'Dark'];
-const B_BODIES = ['Strong', 'Easy drinking', 'Light'];
 const B_TONES = [['choc', 'ช็อกโกแลต · นัท'], ['fruit', 'ผลไม้'], ['citrus', 'ซิตรัส'], ['floral', 'ดอกไม้'], ['sweet', 'หวาน · ครีมมี่']];
 const B_STATUS = [['', 'ไม่ระบุ'], ['store', 'เมล็ดประจำร้าน'], ['limited', 'Limited']];
 const B_RANK = { store: 0, limited: 1, '': 2 };
 
-const bs = { loaded: false, err: '', items: [], settingRows: [], open: null, draft: null, onlyBad: false, busy: false, previewOpen: false, msg: '' };
+const bs = { recOpts: [], loaded: false, err: '', items: [], settingRows: [], open: null, draft: null, onlyBad: false, busy: false, previewOpen: false, msg: '' };
 const bEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 const bNow = () => new Date().toISOString();
 
@@ -465,7 +465,7 @@ function bMissing(p) {
   if (!p.photo_url) m.push('รูป');
   if (!p.roast) m.push('Roast level');
   if (!p.notes) m.push('Taste notes');
-  if (!p.body) m.push('Body');
+  if (!p.body_score) m.push('Body');
   if (!(p.recommend && p.recommend.length)) m.push('Recommend drinks');
   if (!(p.tones && p.tones.length)) m.push('โทนรส');
   return m;
@@ -500,6 +500,8 @@ async function loadBeansTab() {
         sur: ms.length ? Math.max.apply(null, ms.map(m => Number(m.customer_bean_surcharge) || 0)) : 0, complete: ms.length === (p.blend_member_ids || []).length && ms.length > 0 });
     });
     bs.settingRows = (st.data || []).sort((a, b) => a.key.localeCompare(b.key));
+    const ro = bs.settingRows.find(r => r.key === 'beans_page.recommend_options');
+    bs.recOpts = String(ro ? ro.value : '').split(',').map(x => x.trim()).filter(Boolean);
     bs.err = '';
   } catch (e) { bs.err = (e && e.message) || 'โหลดไม่สำเร็จ'; }
   bs.loaded = true;
@@ -509,6 +511,7 @@ async function loadBeansTab() {
 function bChips(items, cur, act, multi) {
   return items.map(([v, l]) => `<span class="bopt ${multi ? ((cur || []).includes(v) ? 'on' : '') : (cur === v ? 'on' : '')}" data-bact="${act}" data-v="${bEsc(v)}">${bEsc(l)}</span>`).join('');
 }
+function recOptions(d) { const o = bs.recOpts.slice(); (d.rec || []).forEach(x => { if (!o.some(y => y.toLowerCase() === x.toLowerCase())) o.push(x); }); return o; }
 function bFormHTML(r) {
   const d = bs.draft, miss = x => (x ? '' : 'miss');
   return `<div class="bform">
@@ -521,9 +524,8 @@ function bFormHTML(r) {
       <div class="bopts" style="margin-top:8px"><span class="bopt ${d.visible ? 'on' : ''}" data-bact="vis">แสดงในหน้าลูกค้า</span></div></div>
     <div class="bfield"><label>Roast level</label><div class="bopts ${miss(d.roast)}">${bChips(B_ROASTS.map(x => [x, x]), d.roast, 'roast')}</div></div>
     <div class="bfield"><label>Taste notes</label><input type="text" data-bf="notes" value="${bEsc(d.notes)}" class="${miss(d.notes)}" placeholder="เช่น Chocolate, Nutty, Caramel"></div>
-    <div class="bfield"><label>Body</label><div class="bopts ${miss(d.body)}">${bChips(B_BODIES.map(x => [x, x]), d.body, 'body')}</div></div>
-    <div class="bfield"><label>Recommend drinks (คั่นด้วย ,)</label><input type="text" data-bf="recommend" list="dl-rec" value="${bEsc(d.recommend)}" class="${miss(d.recommend && d.recommend.trim())}" placeholder="เช่น Latte, Americano">
-      <datalist id="dl-rec"><option value="Latte"><option value="Americano"><option value="Dirty"><option value="Coconut Latte"><option value="Cold Brew"></datalist></div>
+    <div class="bfield"><label>Body (คะแนน 1-5 · แตะซ้ำเพื่อล้าง)</label><div class="bdots ${miss(d.body_score)}">${[1, 2, 3, 4, 5].map(n => `<span data-bact="bscore" data-v="${n}">${n <= (d.body_score || 0) ? '●' : '○'}</span>`).join('')}</div></div>
+    <div class="bfield"><label>Recommend drinks (เลือกได้หลายอัน · ตัวเลือกแก้ได้ในการ์ด "ตั้งค่าหน้าเมล็ด")</label><div class="bopts ${(d.rec || []).length ? '' : 'miss'}">${bChips(recOptions(d).map(x => [x, x]), d.rec, 'rec', true)}</div></div>
     <div class="bfield"><label>โทนรส (ใช้เป็นตัวกรองในหน้าลูกค้า)</label><div class="bopts ${(d.tones || []).length ? '' : 'miss'}">${bChips(B_TONES, d.tones, 'tone', true)}</div></div>
     <div class="bfield"><label>Price — ราคาเพิ่มของเมล็ด (บาท/แก้ว)</label>
       ${r.blend ? `<div class="bhint">คิดจากเมล็ดที่ผสม (ค่าสูงสุดของส่วนผสม) = ${r.sur}฿ · ลูกค้าไม่เห็นส่วนผสม</div>` :
@@ -576,7 +578,7 @@ function bStartEdit(key) {
   const p = r.p || {};
   bs.draft = {
     key, blend: r.blend, ingId: r.ingId, pid: p.id || null, photo_url: p.photo_url || null, photo_pos: p.photo_pos || null,
-    roast: p.roast || '', body: p.body || '', notes: p.notes || '', recommend: (p.recommend || []).join(', '),
+    roast: p.roast || '', body_score: p.body_score || null, notes: p.notes || '', rec: (p.recommend || []).slice(),
     tones: (p.tones || []).slice(), status: p.status || '', house_pick: !!p.house_pick, visible: r.p ? !!p.visible : false, // โปรไฟล์ใหม่ปิดไว้ก่อนจนกว่าข้อมูลพร้อม
     sort_order: r.p ? p.sort_order : (Math.max(0, ...bs.items.map(x => (x.p && x.p.sort_order) || 0)) + 10), surcharge: r.sur, origSurcharge: r.sur,
   };
@@ -611,8 +613,7 @@ async function bSave() {
     if (isNaN(sur) || sur < 0) { alert('ราคาเพิ่มต้องเป็นตัวเลข 0 ขึ้นไป'); return; }
     if (sur !== d.origSurcharge && !confirm(`เปลี่ยนราคาเพิ่มของเมล็ดนี้จาก ${d.origSurcharge}฿ เป็น ${sur}฿ ต่อแก้ว?\nมีผลกับราคาที่ลูกค้าจ่ายในหน้าสั่งทันที`)) return;
   }
-  const seen = {}, rec = String(d.recommend || '').split(',').map(x => x.trim()).filter(x => x && !seen[x.toLowerCase()] && (seen[x.toLowerCase()] = 1));
-  const row = { photo_url: d.photo_url || null, photo_pos: d.photo_pos || null, roast: clean(d.roast), body: clean(d.body), notes: clean(d.notes), recommend: rec,
+  const row = { photo_url: d.photo_url || null, photo_pos: d.photo_pos || null, roast: clean(d.roast), body_score: d.body_score || null, notes: clean(d.notes), recommend: d.rec || [],
     tones: d.tones || [], status: d.status || '', house_pick: !!d.house_pick, visible: !!d.visible, sort_order: Number(d.sort_order) || 0, updated_at: bNow() };
   const q = d.blend ? sb.from('bean_profiles').update(row).eq('id', d.pid) : sb.from('bean_profiles').upsert(Object.assign({ ingredient_id: d.ingId }, row), { onConflict: 'ingredient_id' });
   const { error } = await q;
@@ -648,7 +649,8 @@ document.getElementById('beansWrap').addEventListener('click', e => {
     case 'cancel': bs.open = null; bs.draft = null; renderBeansTab(); break;
     case 'status': d.status = v; renderBeansTab(); break;
     case 'roast': d.roast = d.roast === v ? '' : v; renderBeansTab(); break;
-    case 'body': d.body = d.body === v ? '' : v; renderBeansTab(); break;
+    case 'bscore': d.body_score = d.body_score === Number(v) ? null : Number(v); renderBeansTab(); break;
+    case 'rec': { const s = d.rec || []; const i = s.findIndex(x => x.toLowerCase() === v.toLowerCase()); if (i >= 0) s.splice(i, 1); else s.push(v); d.rec = s; renderBeansTab(); break; }
     case 'vis': d.visible = !d.visible; renderBeansTab(); break;
     case 'tone': { const s = new Set(d.tones || []); if (s.has(v)) s.delete(v); else s.add(v); d.tones = Array.from(s); renderBeansTab(); break; }
     case 'nophoto': d.photo_url = null; renderBeansTab(); break;
@@ -661,7 +663,7 @@ document.getElementById('beansWrap').addEventListener('click', e => {
 document.getElementById('beansWrap').addEventListener('input', e => {
   const f = e.target.dataset && e.target.dataset.bf; if (!f || !bs.draft) return;
   bs.draft[f] = e.target.value;
-  if (f === 'notes' || f === 'recommend') e.target.classList.toggle('miss', !e.target.value.trim());
+  if (f === 'notes') e.target.classList.toggle('miss', !e.target.value.trim());
 });
 document.getElementById('beansWrap').addEventListener('change', e => { if (e.target.dataset && e.target.dataset.bact === 'photo') bUploadPhoto(e.target.files && e.target.files[0]); });
 
