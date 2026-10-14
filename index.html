@@ -1889,7 +1889,7 @@ async function loadCustomerTab() {
       return nonOmakase + countedSets.size * OMAKASE_TOTAL_PRICE;
     }
 
-    // Build per-customer data, sorted by spend (highest first)
+    // Build per-customer data, sorted by number of cups (highest first), ties by spend
     const enriched = members.map(m => {
       const myOrders = orders.filter(o => o.line_user_id === m.line_user_id);
       const myCustomerOrders = myOrders.filter(o => o.order_type === 'customer' || !o.order_type);
@@ -1901,7 +1901,7 @@ async function loadCustomerTab() {
       const favMenu = mode(myOrders.map(o=>o.menu_item_name));
       const revenue = omakaseAwareRevenue(myCustomerOrders);
       return { m, myOrders, myFeedback, myGtky, myManualNotes, avgRating, favBean, favMenu, revenue };
-    }).sort((a, b) => b.revenue - a.revenue || b.myOrders.length - a.myOrders.length);
+    }).sort((a, b) => b.myOrders.length - a.myOrders.length || b.revenue - a.revenue);
 
     const STAFF_LINE_IDS = ['U9e5b79a29578bb5e62df0ac7b0585436', 'U12c18047ff0ace4c831fe4ed8f277d3f'];
     function renderCustRow(row, rankBadge) {
@@ -2014,11 +2014,12 @@ async function loadCustomerTab() {
           <div class="cust-head">
             <div>
               <div class="cust-name">${rankBadge} ${m.display_name} ${m.member_type === 'walkin' ? '<span class="gtky-badge" style="background:rgba(74,52,40,0.08);color:rgba(74,52,40,0.45);">🚶 Not a Member</span>' : '<span class="gtky-badge">🔗 LINE Member</span>'}</div>
-              <div class="cust-meta">${myOrders.length} cups${myFeedback.length ? ' · ' + myFeedback.length + ' feedback' : ''}${myGtky.length ? ' · ' + myGtky.length + ' GTKY' : ''}${myManualNotes.length ? ' · ' + myManualNotes.length + ' notes' : ''}</div>
+              <div class="cust-meta">${myOrders.length} cups${(() => { const f = myOrders.filter(o => o.order_type === 'our_treat' || o.order_type === 'reward').length; return f ? ' (' + f + ' free)' : ''; })()}${myFeedback.length ? ' · ' + myFeedback.length + ' feedback' : ''}${myGtky.length ? ' · ' + myGtky.length + ' GTKY' : ''}${myManualNotes.length ? ' · ' + myManualNotes.length + ' notes' : ''}</div>
             </div>
             ${avgRating !== null ? `<div class="cust-rating">⭐ ${avgRating.toFixed(1)}</div>` : ''}
           </div>
           <div class="cust-detail">
+            ${m.member_type !== 'walkin' && m.line_user_id ? `<a class="gf-btn primary" style="display:inline-block;text-decoration:none;margin-bottom:10px;" href="https://orangecat-tarot.vercel.app/collection.html?preview=${encodeURIComponent(m.line_user_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📖 View as customer (stamp book)</a>` : ''}
             <div class="cust-insight">💡 ${insight}</div>
             ${allergyHtml}
             ${manualNotesHtml}
