@@ -1285,7 +1285,7 @@ async function loadPriceGroupSettings() {
   try {
     const [groups, members] = await Promise.all([
       sbr('price_groups?select=key,label_th,discount_per_cup,active&active=eq.true&order=sort_order'),
-      sbr('members?select=id,display_name,price_group&order=display_name&limit=500'),
+      sbr('members?select=id,display_name,price_group,is_group_rep&order=display_name&limit=500'),
     ]);
     listEl.innerHTML = groups.map(g => `
       <div data-pg="${g.key}" style="background:#FFF3E8;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
@@ -1305,7 +1305,13 @@ async function loadPriceGroupSettings() {
       const rows = members.filter(m => !q || (m.display_name || '').toLowerCase().includes(q.toLowerCase()));
       memEl.innerHTML = rows.map(m => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(74,52,40,0.08);">
         <span style="flex:1;font-size:13px;color:#4A3428;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(m.display_name || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</span>
+        <label style="font-size:11px;color:#8a6a4a;white-space:nowrap;display:flex;align-items:center;gap:4px;"><input type="checkbox" data-rep="${m.id}" ${m.is_group_rep ? 'checked' : ''} style="width:16px;height:16px;margin:0;"> ตัวแทนกลุ่ม</label>
         <select data-member="${m.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px;">${groups.map(g => `<option value="${g.key}" ${m.price_group === g.key ? 'selected' : ''}>${g.label_th}</option>`).join('')}</select></div>`).join('') || '<div style="font-size:12px;color:#A8876F;">ไม่พบสมาชิก</div>';
+      memEl.querySelectorAll('input[data-rep]').forEach(cb => cb.addEventListener('change', async () => {
+        const m = members.find(x => String(x.id) === cb.dataset.rep);
+        try { await sbr(`members?id=eq.${encodeURIComponent(cb.dataset.rep)}`, { method: 'PATCH', body: JSON.stringify({ is_group_rep: cb.checked }) }); if (m) m.is_group_rep = cb.checked; say(true, `✅ ${m ? m.display_name : 'สมาชิก'} ${cb.checked ? 'เป็นตัวแทนกลุ่ม — ออเดอร์ใหม่ไม่ส่งขอรีวิวทาง LINE' : 'ไม่ใช่ตัวแทนกลุ่มแล้ว'}`); }
+        catch (e) { say(false, 'เปลี่ยนไม่สำเร็จ: ' + e.message); cb.checked = !cb.checked; }
+      }));
       memEl.querySelectorAll('select[data-member]').forEach(sel => sel.addEventListener('change', async () => {
         const m = members.find(x => String(x.id) === sel.dataset.member);
         try { await sbr(`members?id=eq.${encodeURIComponent(sel.dataset.member)}`, { method: 'PATCH', body: JSON.stringify({ price_group: sel.value }) }); if (m) m.price_group = sel.value; say(true, `✅ ${m ? m.display_name : 'สมาชิก'} → ${sel.options[sel.selectedIndex].text}`); }
