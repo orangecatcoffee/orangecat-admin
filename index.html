@@ -1853,22 +1853,26 @@ async function loadCustomerTab() {
       sbr('gtky_sends?select=*,gtky_questions(question_text,gtky_categories(name))&answer_text=not.is.null&order=responded_at.desc'),
       sbr('manual_feedback_notes?select=*&order=noted_at.desc'),
       sbr('customer_allergies?select=*&order=created_at.asc'),
-      sbr('ingredients?select=id,name,category&active=eq.true&order=category.asc,name.asc'),
+      sbr('ingredients?select=id,name,stock_group&active=eq.true&stock_group=neq.packaging&order=name.asc'),
     ]);
 
     // ⚠️ แพ้/ไม่กิน — เตรียม dropdown ตัวเลือกส่วนผสม (ใช้ร่วมกันทุกการ์ดลูกค้า) + map ชื่อส่วนผสม
-    const ALLERGY_CAT_LABEL = { coffee_bean: 'เมล็ดกาแฟ', base: 'เบส', milk: 'นม/มิกเซอร์', syrup: 'ไซรัป', topping: 'ท็อปปิ้ง', other: 'อื่นๆ' };
-    const ingredientNameById = {};
-    const ingredientsByCat = {};
-    ingredientRows.forEach(i => {
-      ingredientNameById[i.id] = i.name;
-      (ingredientsByCat[i.category] = ingredientsByCat[i.category] || []).push(i);
-    });
-    const allergyIngredientOptionsHtml = Object.entries(ingredientsByCat).map(([cat, items]) =>
-      `<optgroup label="${ALLERGY_CAT_LABEL[cat] || cat}">${items.map(i => `<option value="${i.id}">${i.name}</option>`).join('')}</optgroup>`
-    ).join('');
+    // หมวดวัตถุดิบอ่านจากตารางกลาง ingredient_groups (ไม่ hardcode แล้ว) — เรียงตาม sort_order
+let allergyGroupRows = [];
+try { allergyGroupRows = await sbr('ingredient_groups?select=key,label_th,icon,sort_order&active=eq.true&order=sort_order.asc'); } catch (e) { allergyGroupRows = []; }
+const ingredientNameById = {};
+const ingredientsByCat = {};
+ingredientRows.forEach(i => {
+ingredientNameById[i.id] = i.name;
+(ingredientsByCat[i.stock_group] = ingredientsByCat[i.stock_group] || []).push(i);
+});
+const allergyGroupOrder = [...allergyGroupRows.map(g => g.key), ...Object.keys(ingredientsByCat).filter(k => !allergyGroupRows.some(g => g.key === k))];
+const allergyGroupLabel = k => { const g = allergyGroupRows.find(x => x.key === k); return g ? `${g.icon} ${g.label_th}` : (k || 'อื่นๆ'); };
+const allergyIngredientOptionsHtml = allergyGroupOrder.filter(k => ingredientsByCat[k]).map(k =>
+`<optgroup label="${allergyGroupLabel(k)}">${ingredientsByCat[k].map(i => `<option value="${i.id}">${i.name}</option>`).join('')}</optgroup>`
+).join('');
 
-    if (!members.length) {
+if (!members.length) {
       listEl.innerHTML = '<div class="empty">No registered customers yet</div>';
       return;
     }
