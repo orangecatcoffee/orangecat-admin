@@ -6,139 +6,143 @@
 <title>กาแฟแมวส้ม — Admin</title>
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/orangecatcoffee/orangecat-admin/main/icon-admin.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta name="theme-color" content="#0F2036">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://orangecat-brew.vercel.app/ocos.css">
+<script src="https://orangecat-brew.vercel.app/ocos.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { font-family: -apple-system, "Segoe UI", "Mitr", sans-serif; background: #FFF8F0; color: #4A3428; padding-bottom: 48px; min-height: 100vh; }
-  .header { background: linear-gradient(135deg, #FFF3E8, #FFE4CC); padding: 20px 20px 16px; text-align: center; }
-  .header .brand { font-size: 12px; color: #A8876F; letter-spacing: 1px; margin-bottom: 2px; }
-  .header h1 { font-size: 20px; color: #4A3428; }
-  .header .sub { font-size: 12px; color: #E8863A; font-weight: 600; margin-top: 4px; }
+  body { font-family: -apple-system, "Segoe UI", "Mitr", sans-serif; background: var(--bg); color: var(--text); padding-bottom: 48px; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, var(--accent-soft), var(--accent-soft)); padding: 20px 20px 16px; text-align: center; }
+  .header .brand { font-size: 12px; color: var(--muted); letter-spacing: 1px; margin-bottom: 2px; }
+  .header h1 { font-size: 20px; color: var(--text); }
+  .header .sub { font-size: 12px; color: var(--accent-text); font-weight: 600; margin-top: 4px; }
   .wrap { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-  .group { background: #fff; border-radius: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border-left: 5px solid #E0D2C2; }
-  .group.audience-customer { border-left-color: #E8863A; }
-  .group.audience-owner { border-left-color: #4A7FB5; }
+  .group { background: var(--surface); border-radius: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border-left: 5px solid var(--line); }
+  .group.audience-customer { border-left-color: var(--accent); }
+  .group.audience-owner { border-left-color: var(--info); }
   .audience-tag { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
-  .audience-tag.customer { background: rgba(232,134,58,0.15); color: #C4681E; }
-  .audience-tag.owner { background: rgba(74,127,181,0.15); color: #2E5F8F; }
-  .group-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; background: #FFF3E8; border-bottom: 1px solid #F0E4D8; }
-  .group-title { font-size: 15px; font-weight: 700; color: #4A3428; }
+  .audience-tag.customer { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent-text); }
+  .audience-tag.owner { background: rgba(74,127,181,0.15); color: var(--info); }
+  .group-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 16px; background: var(--accent-soft); border-bottom: 1px solid var(--line); }
+  .group-title { font-size: 15px; font-weight: 700; color: var(--text); }
 
-  .item { padding: 14px 16px; border-bottom: 1px solid #F5EDE3; }
+  .item { padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .item:last-child { border-bottom: none; }
   .row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
-  .label { font-size: 13.5px; font-weight: 600; color: #4A3428; }
-  .desc { font-size: 11.5px; color: #A8876F; margin-bottom: 10px; line-height: 1.5; }
+  .label { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .desc { font-size: 11.5px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
 
   .toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
   .toggle input { opacity: 0; width: 0; height: 0; }
-  .slider { position: absolute; cursor: pointer; inset: 0; background: #E0D2C2; border-radius: 999px; transition: .2s; }
-  .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
-  input:checked + .slider { background: #4A9B5C; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: var(--raised); border-radius: 999px; transition: .2s; }
+  .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: var(--surface); border-radius: 50%; transition: .2s; }
+  input:checked + .slider { background: var(--ok); }
   input:checked + .slider:before { transform: translateX(20px); }
 
   .num-row, .text-row { display: flex; align-items: center; gap: 8px; }
-  input[type="number"] { width: 90px; padding: 10px 12px; border-radius: 10px; border: 2px solid #F0E4D8; font-size: 16px; font-family: inherit; color: #4A3428; }
-  input[type="text"] { flex: 1; padding: 10px 12px; border-radius: 10px; border: 2px solid #F0E4D8; font-size: 14px; font-family: inherit; color: #4A3428; }
-  input:focus { outline: none; border-color: #E8863A; }
-  .btn-save { padding: 9px 16px; border-radius: 8px; border: none; background: #E8863A; color: #fff; font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; }
-  .btn-save:disabled { background: #D8C4B0; }
-  .btn-save.saved { background: #4A9B5C; }
+  input[type="number"] { width: 90px; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); font-size: 16px; font-family: inherit; color: var(--text); }
+  input[type="text"] { flex: 1; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); font-size: 14px; font-family: inherit; color: var(--text); }
+  input:focus { outline: none; border-color: var(--accent); }
+  .btn-save { padding: 9px 16px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 700; font-family: inherit; white-space: nowrap; }
+  .btn-save:disabled { background: var(--line); }
+  .btn-save.saved { background: var(--ok); }
 
-  .loading, .empty { text-align: center; color: #A8876F; font-size: 13px; padding: 30px 0; }
-  .footer-note { text-align: center; font-size: 10.5px; color: #C4A98A; margin-top: 24px; line-height: 1.6; }
+  .loading, .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 0; }
+  .footer-note { text-align: center; font-size: 10.5px; color: var(--muted); margin-top: 24px; line-height: 1.6; }
 
 
   /* ---------- BEANS TAB ---------- */
   .bsum { font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 4px 0 10px; }
   .bsum label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
-  .bbtn { display: inline-block; padding: 9px 14px; border-radius: 8px; border: 2px solid #E0D2C2; background: #fff; color: #4A3428; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; position: relative; overflow: hidden; }
+  .bbtn { display: inline-block; padding: 9px 14px; border-radius: 8px; border: 2px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; position: relative; overflow: hidden; }
   .bbtn.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; font-size: 16px; }
-  .bprev iframe { width: 100%; height: 640px; border: 2px solid #F0E4D8; border-radius: 12px; background: #C69C6D; }
+  .bprev iframe { width: 100%; height: 640px; border: 2px solid var(--line); border-radius: 12px; background: #C69C6D; }
   .brows { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
-  .brow { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid #4A9B5C; overflow: hidden; }
-  .brow.bad { background: #FDE9E6; border-left-color: #E58B84; }
+  .brow { background: var(--surface); border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid var(--ok); overflow: hidden; }
+  .brow.bad { background: var(--bad-soft); border-left-color: var(--bad); }
   .brow-head { display: flex; align-items: center; }
   .brow-main { flex: 1; min-width: 0; display: flex; gap: 12px; align-items: center; text-align: left; background: transparent; border: none; padding: 12px; font-family: inherit; color: inherit; cursor: pointer; }
-  .bth { flex: 0 0 54px; width: 54px; height: 54px; border-radius: 10px; background: #EADFCF center/cover no-repeat; }
+  .bth { flex: 0 0 54px; width: 54px; height: 54px; border-radius: 10px; background: var(--raised) center/cover no-repeat; }
   .bbody { flex: 1; min-width: 0; }
   .bname { font-size: 15px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
-  .bmeta { font-size: 11.5px; color: #8A6F5A; margin-top: 3px; line-height: 1.5; }
-  .bmiss { color: #B3382C; font-weight: 600; }
-  .bok { color: #3F7A5A; }
-  .bno { color: #A8876F; }
-  .bbd { display: inline-block; font-size: 10.5px; border-radius: 999px; padding: 1px 8px; color: #fff; margin-left: 4px; font-weight: 600; vertical-align: 1px; }
-  .bbd.store { background: #E8621A; } .bbd.limited { background: #6E1F2C; } .bbd.house { background: #E8B23A; color: #2a1a05; }
+  .bmeta { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+  .bmiss { color: var(--bad); font-weight: 600; }
+  .bok { color: var(--ok); }
+  .bno { color: var(--muted); }
+  .bbd { display: inline-block; font-size: 10.5px; border-radius: 999px; padding: 1px 8px; color: var(--on-accent); margin-left: 4px; font-weight: 600; vertical-align: 1px; }
+  .bbd.store { background: var(--accent); } .bbd.limited { background: #6E1F2C; } .bbd.house { background: #E8B23A; color: #2a1a05; }
   .bmv { display: flex; flex-direction: column; gap: 4px; padding-right: 10px; }
-  .bmv button { width: 32px; height: 28px; border: 1px solid #E0D2C2; background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; color: #4A3428; }
+  .bmv button { width: 32px; height: 28px; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text); }
   .bmv button:disabled { opacity: .3; cursor: default; }
-  .bform { padding: 4px 16px 16px; border-top: 1px dashed #E8D8C6; display: flex; flex-direction: column; gap: 12px; }
+  .bform { padding: 4px 16px 16px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 12px; }
   .bfield label { display: block; font-size: 12.5px; font-weight: 700; margin: 10px 0 5px; }
-  .bfield input[type="text"], .bfield input[type="number"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 2px solid #F0E4D8; font-size: 16px; font-family: inherit; color: #4A3428; background: #fff; }
-  .bfield input.miss { background: #FDE9E6; border-color: #E58B84; }
+  .bfield input[type="text"], .bfield input[type="number"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--line); font-size: 16px; font-family: inherit; color: var(--text); background: var(--surface); }
+  .bfield input.miss { background: var(--bad-soft); border-color: var(--bad); }
   .bpic { display: flex; gap: 12px; align-items: center; }
-  .bpv { width: 84px; height: 84px; flex: 0 0 84px; border-radius: 10px; background: #EADFCF center/cover no-repeat; border: 2px solid #F0E4D8; }
-  .bpic.miss .bpv { background-color: #FDE9E6; border-color: #E58B84; }
+  .bpv { width: 84px; height: 84px; flex: 0 0 84px; border-radius: 10px; background: var(--raised) center/cover no-repeat; border: 2px solid var(--line); }
+  .bpic.miss .bpv { background-color: var(--bad-soft); border-color: var(--bad); }
   .bpb { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
   .bopts { display: flex; flex-wrap: wrap; gap: 8px; }
-  .bopt { border: 2px solid #E0D2C2; border-radius: 999px; padding: 7px 13px; font-size: 13px; cursor: pointer; background: #fff; user-select: none; }
-  .bopt.on { background: #4A3428; color: #FFF8F0; border-color: #4A3428; }
-  .bopts.miss .bopt:not(.on) { background: #FDE9E6; border-color: #E58B84; }
-  .bhint { font-size: 11.5px; color: #A8876F; margin-top: 5px; line-height: 1.5; }
+  .bopt { border: 2px solid var(--line); border-radius: 999px; padding: 7px 13px; font-size: 13px; cursor: pointer; background: var(--surface); user-select: none; }
+  .bopt.on { background: var(--bar); color: var(--bar-ink); border-color: var(--text); }
+  .bopts.miss .bopt:not(.on) { background: var(--bad-soft); border-color: var(--bad); }
+  .bhint { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
   .bacts { display: flex; gap: 8px; margin-top: 4px; }
-  .bmsg { background: #E9F5EC; border: 1px solid #A9D4B3; color: #2F6B43; border-radius: 10px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
-  .bdots { display: flex; gap: 10px; align-items: center; } .bdots span { font-size: 30px; line-height: 1; color: #C4401E; cursor: pointer; user-select: none; padding: 0 2px; } .bdots.miss { background: #FDE9E6; border-radius: 10px; padding: 2px 8px; width: fit-content; }
+  .bmsg { background: var(--ok-soft); border: 1px solid var(--ok); color: var(--ok); border-radius: 10px; padding: 9px 12px; font-size: 13px; margin-bottom: 12px; }
+  .bdots { display: flex; gap: 10px; align-items: center; } .bdots span { font-size: 30px; line-height: 1; color: var(--accent-text); cursor: pointer; user-select: none; padding: 0 2px; } .bdots.miss { background: var(--bad-soft); border-radius: 10px; padding: 2px 8px; width: fit-content; }
 
 /* ===== moved from Owner (GTKY / Customers / Gifts / CRM / Content / Settings) ===== */
-:root{--bg:#FFF8F0; --card:#FFFFFF; --orange:#E8863A; --ol:#A8876F;
-    --cream:#4A3428; --border:#F0E4D8; --green:#4A9B5C; --red:#D64545;}
+
 *{margin:0;padding:0;box-sizing:border-box;}
 .tabs{display:flex;gap:0;padding:16px 16px 0;position:sticky;top:0;background:var(--bg);z-index:10;}
-.tab{flex:1;text-align:center;padding:12px 8px;font-size:13px;font-weight:500;color:rgba(74,52,40,0.45);border-bottom:2px solid var(--border);cursor:pointer;transition:.2s;}
+.tab{flex:1;text-align:center;padding:12px 8px;font-size:13px;font-weight:500;color:color-mix(in srgb, var(--text) 45%, transparent);border-bottom:2px solid var(--border);cursor:pointer;transition:.2s;}
 .tab.active{color:var(--ol);border-bottom-color:var(--orange);}
 .tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .tab{white-space:nowrap;padding-left:12px;padding-right:12px;}
 .gtky-subtabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);}
-.gtky-subtab{flex:1;text-align:center;padding:10px 8px;font-size:12.5px;font-weight:600;color:rgba(74,52,40,0.4);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;}
+.gtky-subtab{flex:1;text-align:center;padding:10px 8px;font-size:12.5px;font-weight:600;color:color-mix(in srgb, var(--text) 40%, transparent);border-bottom:2px solid transparent;cursor:pointer;transition:.2s;}
 .gtky-subtab.active{color:var(--orange);border-bottom-color:var(--orange);}
 .gtky-subtab.active[data-subtab="gtky-baristafb"]{color:var(--green);border-bottom-color:var(--green);}
 .view{display:none;padding:20px 16px;max-width:640px;margin:0 auto;}
 .view.active{display:block;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;}
-.card-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(74,52,40,0.4);margin-bottom:14px;font-weight:500;}
-label{display:block;font-size:11px;color:rgba(74,52,40,0.55);margin-bottom:5px;margin-top:12px;font-weight:300;}
-input, select, textarea{width:100%;background:rgba(74,52,40,0.05);border:1px solid var(--border);border-radius:10px;
+.card-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:color-mix(in srgb, var(--text) 40%, transparent);margin-bottom:14px;font-weight:500;}
+label{display:block;font-size:11px;color:color-mix(in srgb, var(--text) 55%, transparent);margin-bottom:5px;margin-top:12px;font-weight:300;}
+input, select, textarea{width:100%;background:color-mix(in srgb, var(--text) 5%, transparent);border:1px solid var(--border);border-radius:10px;
     padding:10px 12px;color:var(--cream);font-family:'Mitr',sans-serif;font-size:16px;outline:none;}
-input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
+input:focus, select:focus, textarea:focus{border-color:color-mix(in srgb, var(--accent) 50%, transparent);}
 .btn{width:100%;margin-top:16px;background:var(--orange);
-    border:none;border-radius:10px;padding:14px;color:#fff;font-weight:700;font-size:14px;
-    cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 16px rgba(232,134,58,0.3);
+    border:none;border-radius:10px;padding:14px;color:var(--on-accent);font-weight:700;font-size:14px;
+    cursor:pointer;letter-spacing:.3px;box-shadow:0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent);
     transition:transform .1s, box-shadow .1s;}
 .btn:active{transform:scale(0.98);}
 .btn:disabled{opacity:.4;box-shadow:none;cursor:not-allowed;}
 .status{font-size:11px;padding:8px 12px;border-radius:8px;margin-top:10px;display:none;}
-.status.ok{display:block;background:rgba(74,155,92,0.12);color:var(--green);border:1px solid rgba(74,155,92,0.25);}
-.status.err{display:block;background:rgba(214,69,69,0.08);color:var(--red);border:1px solid rgba(214,69,69,0.25);}
+.status.ok{display:block;background:color-mix(in srgb, var(--ok) 12%, transparent);color:var(--green);border:1px solid color-mix(in srgb, var(--ok) 25%, transparent);}
+.status.err{display:block;background:color-mix(in srgb, var(--bad) 8%, transparent);color:var(--red);border:1px solid color-mix(in srgb, var(--bad) 25%, transparent);}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .recipe-table-wrap{overflow-x:auto;margin:0 -18px;padding:0 18px;}
 .recipe-table{width:100%;border-collapse:collapse;font-size:12px;min-width:560px;}
-.recipe-table th{text-align:left;padding:8px 10px;color:rgba(74,52,40,0.4);font-size:9px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
-.recipe-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top;color:rgba(74,52,40,0.85);}
+.recipe-table th{text-align:left;padding:8px 10px;color:color-mix(in srgb, var(--text) 40%, transparent);font-size:9px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
+.recipe-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:top;color:color-mix(in srgb, var(--text) 85%, transparent);}
 .recipe-table tr:last-child td{border-bottom:none;}
 .recipe-profit{font-weight:700;white-space:nowrap;}
 .recipe-profit.good{color:var(--green);}
 .recipe-profit.bad{color:var(--red);}
-.recipe-group-row td{background:rgba(232,98,26,0.06);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ol);font-weight:600;padding:8px 10px;border-bottom:1px solid rgba(232,98,26,0.15);}
-.range-chip.selected{border-color:var(--orange);background:var(--orange);color:#fff;font-weight:700;box-shadow:0 2px 6px rgba(232,134,58,0.35);}
+.recipe-group-row td{background:color-mix(in srgb, var(--accent) 6%, transparent);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ol);font-weight:600;padding:8px 10px;border-bottom:1px solid color-mix(in srgb, var(--accent) 15%, transparent);}
+.range-chip.selected{border-color:var(--orange);background:var(--orange);color:var(--on-accent);font-weight:700;box-shadow:0 2px 6px color-mix(in srgb, var(--accent) 35%, transparent);}
 .chip-row{display:flex;flex-wrap:wrap;gap:8px;}
-.chip{font-size:11px;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:rgba(74,52,40,0.03);color:rgba(74,52,40,0.6);cursor:pointer;font-family:'Mitr',sans-serif;}
-.gtky-mode-chip.selected{border-color:var(--orange);background:var(--orange);color:#fff;font-weight:700;}
-.gtky-cust-chip.selected{border-color:var(--orange);background:var(--orange);color:#fff;font-weight:700;}
+.chip{font-size:11px;padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb, var(--text) 3%, transparent);color:color-mix(in srgb, var(--text) 60%, transparent);cursor:pointer;font-family:'Mitr',sans-serif;}
+.gtky-mode-chip.selected{border-color:var(--orange);background:var(--orange);color:var(--on-accent);font-weight:700;}
+.gtky-cust-chip.selected{border-color:var(--orange);background:var(--orange);color:var(--on-accent);font-weight:700;}
 .barchart-row{margin-bottom:12px;}
 .barchart-row:last-child{margin-bottom:0;}
 .barchart-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;color:var(--cream);}
 .barchart-label b{font-weight:700;}
-.barchart-track{height:12px;background:rgba(74,52,40,0.08);border-radius:6px;overflow:hidden;}
+.barchart-track{height:12px;background:color-mix(in srgb, var(--text) 8%, transparent);border-radius:6px;overflow:hidden;}
 .barchart-fill{height:100%;background:linear-gradient(90deg,var(--orange),#FF8F5A);border-radius:6px;}
 .menprofit-item{padding:10px 0;border-bottom:1px solid var(--border);}
 .menprofit-item:last-child{border-bottom:none;}
@@ -146,38 +150,38 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 .menprofit-margin{font-size:10.5px;font-weight:700;color:var(--ol);}
 .menprofit-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
 .menprofit-row:last-child{margin-bottom:0;}
-.menprofit-tag{font-size:9.5px;color:rgba(74,52,40,0.4);width:34px;flex-shrink:0;}
-.menprofit-track{flex:1;height:8px;background:rgba(74,52,40,0.08);border-radius:4px;overflow:hidden;}
+.menprofit-tag{font-size:9.5px;color:color-mix(in srgb, var(--text) 40%, transparent);width:34px;flex-shrink:0;}
+.menprofit-track{flex:1;height:8px;background:color-mix(in srgb, var(--text) 8%, transparent);border-radius:4px;overflow:hidden;}
 .menprofit-fill{height:100%;border-radius:4px;}
 .menprofit-fill.cups{background:linear-gradient(90deg,#8FA8C4,#B8CCE0);}
 .menprofit-fill.profit{background:linear-gradient(90deg,var(--orange),#FF8F5A);}
 .menprofit-fill.profit.bad{background:linear-gradient(90deg,var(--red),#E88080);}
-.menprofit-val{font-size:10.5px;color:rgba(74,52,40,0.55);width:52px;flex-shrink:0;text-align:right;}
+.menprofit-val{font-size:10.5px;color:color-mix(in srgb, var(--text) 55%, transparent);width:52px;flex-shrink:0;text-align:right;}
 .menprofit-total{margin-top:4px;padding-top:12px;border-top:2px solid var(--border);font-weight:700;}
 .menprofit-legend-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;}
 .menprofit-legend-row:last-child{border-bottom:none;}
 .menprofit-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .menprofit-legend-name{flex:1;color:var(--cream);font-weight:500;}
 .menprofit-legend-tag{font-weight:700;font-size:10.5px;white-space:nowrap;}
-.menprofit-legend-val{color:rgba(74,52,40,0.45);font-size:10px;white-space:nowrap;}
+.menprofit-legend-val{color:color-mix(in srgb, var(--text) 45%, transparent);font-size:10px;white-space:nowrap;}
 .staffcal-row{display:grid;grid-template-columns:70px 1fr 1fr;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:11.5px;}
 .staffcal-row:last-child{border-bottom:none;}
-.staffcal-date{color:rgba(74,52,40,0.6);}
+.staffcal-date{color:color-mix(in srgb, var(--text) 60%, transparent);}
 .staffcal-cell{text-align:center;padding:4px 6px;border-radius:8px;font-weight:700;}
-.staffcal-cell.yes{background:rgba(74,155,92,0.12);color:var(--green);}
-.staffcal-cell.no{background:rgba(214,69,69,0.08);color:var(--red);}
-.staffcal-head{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(74,52,40,0.4);margin-bottom:6px;font-weight:700;}
+.staffcal-cell.yes{background:color-mix(in srgb, var(--ok) 12%, transparent);color:var(--green);}
+.staffcal-cell.no{background:color-mix(in srgb, var(--bad) 8%, transparent);color:var(--red);}
+.staffcal-head{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-bottom:6px;font-weight:700;}
 .gtky-idea-chip{font-size:10.5px;padding:5px 10px;}
-.gtky-idea-chip:active{background:rgba(232,98,26,0.15);}
+.gtky-idea-chip:active{background:color-mix(in srgb, var(--accent) 15%, transparent);}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.stat-box{background:#fff;border:1px solid var(--border);border-left:4px solid var(--orange);border-radius:12px;padding:12px 14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);}
-.stat-label{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:rgba(74,52,40,0.4);margin-bottom:6px;}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--orange);border-radius:12px;padding:12px 14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);}
+.stat-label{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:color-mix(in srgb, var(--text) 40%, transparent);margin-bottom:6px;}
 .stat-val{font-size:19px;font-weight:700;color:var(--orange);}
 .stat-val.good{color:var(--green);}
 .stat-val.bad{color:var(--red);}
-.stat-sub{font-size:10.5px;color:rgba(74,52,40,0.4);margin-top:3px;}
+.stat-sub{font-size:10.5px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:3px;}
 .unpaid-note{font-size:11px;color:var(--ol);margin-top:10px;text-align:center;}
-.carryover-note{font-size:10.5px;color:rgba(74,52,40,0.45);margin-top:10px;text-align:center;font-style:italic;line-height:1.5;}
+.carryover-note{font-size:10.5px;color:color-mix(in srgb, var(--text) 45%, transparent);margin-top:10px;text-align:center;font-style:italic;line-height:1.5;}
 .freebie-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);}
 .freebie-row:last-child{border-bottom:none;}
 .lowstock-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);color:var(--red);}
@@ -188,43 +192,43 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 .cust-subhead:first-child{margin-top:0;}
 .cust-head{display:flex;justify-content:space-between;align-items:center;}
 .cust-name{font-size:14px;font-weight:600;color:var(--cream);}
-.cust-meta{font-size:10.5px;color:rgba(74,52,40,0.4);margin-top:3px;}
+.cust-meta{font-size:10.5px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:3px;}
 .cust-rating{font-size:13px;font-weight:700;color:var(--ol);white-space:nowrap;}
 .cust-detail{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:none;}
 .cust-detail.open{display:block;}
-.cust-insight{background:rgba(232,98,26,0.1);border:1px solid rgba(232,98,26,0.3);border-radius:10px;padding:10px 12px;font-size:11.5px;color:rgba(74,52,40,0.8);line-height:1.6;margin-bottom:12px;}
+.cust-insight{background:color-mix(in srgb, var(--accent) 10%, transparent);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);border-radius:10px;padding:10px 12px;font-size:11.5px;color:color-mix(in srgb, var(--text) 80%, transparent);line-height:1.6;margin-bottom:12px;}
 .fb-item{padding:10px 0;border-bottom:1px solid var(--border);}
 .fb-item:last-child{border-bottom:none;}
 .fb-top{display:flex;justify-content:space-between;align-items:center;}
 .fb-menu{font-size:12.5px;font-weight:500;color:var(--cream);}
 .fb-rating{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;}
 .fb-rating.r5,.fb-rating.r4{background:rgba(143,188,143,0.15);color:var(--green);}
-.fb-rating.r3{background:rgba(201,164,74,0.15);color:#C9A44A;}
-.fb-rating.r2,.fb-rating.r1{background:rgba(220,100,100,0.15);color:var(--red);}
-.fb-sub{font-size:10px;color:rgba(74,52,40,0.4);margin-top:3px;}
-.fb-comment{font-size:11.5px;color:rgba(74,52,40,0.75);margin-top:6px;line-height:1.6;white-space:pre-wrap;}
-.order-row{display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--border);color:rgba(74,52,40,0.65);}
+.fb-rating.r3{background:color-mix(in srgb, var(--warn) 15%, transparent);color:var(--warn);}
+.fb-rating.r2,.fb-rating.r1{background:color-mix(in srgb, var(--bad) 15%, transparent);color:var(--red);}
+.fb-sub{font-size:10px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:3px;}
+.fb-comment{font-size:11.5px;color:color-mix(in srgb, var(--text) 75%, transparent);margin-top:6px;line-height:1.6;white-space:pre-wrap;}
+.order-row{display:flex;justify-content:space-between;font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--border);color:color-mix(in srgb, var(--text) 65%, transparent);}
 .order-row:last-child{border-bottom:none;}
 .allergy-list{margin-bottom:8px;}
 .allergy-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;margin-bottom:6px;border:1px solid;}
-.allergy-item.severe{background:rgba(214,69,69,0.1);border-color:rgba(214,69,69,0.35);}
-.allergy-item.mild{background:rgba(232,134,58,0.1);border-color:rgba(232,134,58,0.3);}
+.allergy-item.severe{background:color-mix(in srgb, var(--bad) 10%, transparent);border-color:color-mix(in srgb, var(--bad) 35%, transparent);}
+.allergy-item.mild{background:color-mix(in srgb, var(--accent) 10%, transparent);border-color:color-mix(in srgb, var(--accent) 30%, transparent);}
 .allergy-item.tolerate{background:rgba(74,134,214,0.1);border-color:rgba(74,134,214,0.3);}
 .allergy-item-label{font-size:12px;font-weight:600;color:var(--cream);}
-.allergy-item-sev{font-size:10px;font-weight:400;color:rgba(74,52,40,0.45);margin-left:4px;}
-.allergy-item-note{font-size:10.5px;color:rgba(74,52,40,0.55);margin-top:2px;font-style:italic;}
+.allergy-item-sev{font-size:10px;font-weight:400;color:color-mix(in srgb, var(--text) 45%, transparent);margin-left:4px;}
+.allergy-item-note{font-size:10.5px;color:color-mix(in srgb, var(--text) 55%, transparent);margin-top:2px;font-style:italic;}
 .allergy-del-btn{background:none;border:none;color:var(--red);font-size:14px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
-.allergy-empty{font-size:11px;color:rgba(74,52,40,0.35);margin-bottom:8px;}
+.allergy-empty{font-size:11px;color:color-mix(in srgb, var(--text) 35%, transparent);margin-bottom:8px;}
 .allergy-add-block{border-top:1px dashed var(--border);padding-top:10px;margin-top:2px;}
-.allergy-ing-select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-family:'Mitr',sans-serif;color:var(--cream);background:#fff;margin-bottom:8px;}
+.allergy-ing-select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;font-family:'Mitr',sans-serif;color:var(--cream);background:var(--surface);margin-bottom:8px;}
 .allergy-sev-picker{display:none;gap:6px;margin-bottom:8px;}
-.allergy-sev-btn{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;font-family:'Mitr',sans-serif;cursor:pointer;background:#fff;}
-.allergy-sev-btn.severe{color:var(--red);border-color:rgba(214,69,69,0.4);}
-.allergy-sev-btn.mild{color:var(--orange);border-color:rgba(232,134,58,0.4);}
-.allergy-sev-btn.tolerate{color:#4A86D6;border-color:rgba(74,134,214,0.4);}
-.allergy-sev-cancel{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:11.5px;background:#fff;color:rgba(74,52,40,0.5);font-family:'Mitr',sans-serif;cursor:pointer;}
-.allergy-nocoffee-btn{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(214,69,69,0.35);background:rgba(214,69,69,0.05);color:var(--red);font-size:11.5px;font-weight:700;font-family:'Mitr',sans-serif;cursor:pointer;}
-.txn-row{padding:7px 0;border-bottom:1px solid var(--border);font-size:11.5px;color:rgba(74,52,40,0.65);}
+.allergy-sev-btn{flex:1;padding:8px 6px;border-radius:8px;border:1px solid var(--border);font-size:11.5px;font-weight:700;font-family:'Mitr',sans-serif;cursor:pointer;background:var(--surface);}
+.allergy-sev-btn.severe{color:var(--red);border-color:color-mix(in srgb, var(--bad) 40%, transparent);}
+.allergy-sev-btn.mild{color:var(--orange);border-color:color-mix(in srgb, var(--accent) 40%, transparent);}
+.allergy-sev-btn.tolerate{color:var(--info);border-color:rgba(74,134,214,0.4);}
+.allergy-sev-cancel{padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:11.5px;background:var(--surface);color:color-mix(in srgb, var(--text) 50%, transparent);font-family:'Mitr',sans-serif;cursor:pointer;}
+.allergy-nocoffee-btn{width:100%;padding:9px;border-radius:8px;border:1px solid color-mix(in srgb, var(--bad) 35%, transparent);background:color-mix(in srgb, var(--bad) 5%, transparent);color:var(--red);font-size:11.5px;font-weight:700;font-family:'Mitr',sans-serif;cursor:pointer;}
+.txn-row{padding:7px 0;border-bottom:1px solid var(--border);font-size:11.5px;color:color-mix(in srgb, var(--text) 65%, transparent);}
 .txn-row:last-child{border-bottom:none;}
 .txn-scroll{max-height:270px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .trend-type-chip{display:inline-flex;align-items:center;gap:6px;}
@@ -233,38 +237,38 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 .trend-chart-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
 .trend-chart-bars{display:flex;align-items:flex-end;gap:12px;min-height:180px;padding:4px 2px 0;}
 .trend-bar-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:36px;}
-.trend-bar-total{font-size:9px;color:rgba(74,52,40,0.5);margin-bottom:5px;white-space:nowrap;font-weight:700;}
-.trend-bar-track{width:20px;height:130px;display:flex;flex-direction:column-reverse;background:rgba(74,52,40,0.05);border-radius:5px;overflow:hidden;}
+.trend-bar-total{font-size:9px;color:color-mix(in srgb, var(--text) 50%, transparent);margin-bottom:5px;white-space:nowrap;font-weight:700;}
+.trend-bar-track{width:20px;height:130px;display:flex;flex-direction:column-reverse;background:color-mix(in srgb, var(--text) 5%, transparent);border-radius:5px;overflow:hidden;}
 .trend-seg{width:100%;}
 .trend-seg:not(:last-child){border-bottom:1px solid rgba(255,255,255,0.55);}
-.trend-bar-label{font-size:8.5px;color:rgba(74,52,40,0.4);margin-top:6px;white-space:nowrap;}
+.trend-bar-label{font-size:8.5px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:6px;white-space:nowrap;}
 .txn-row-main{display:flex;justify-content:space-between;gap:8px;}
-.txn-row-sub{display:flex;justify-content:space-between;gap:8px;margin-top:3px;font-size:10px;color:rgba(74,52,40,0.4);}
+.txn-row-sub{display:flex;justify-content:space-between;gap:8px;margin-top:3px;font-size:10px;color:color-mix(in srgb, var(--text) 40%, transparent);}
 .txn-profit{font-weight:600;}
 .txn-profit.good{color:var(--green);}
 .txn-profit.bad{color:var(--red);}
-.staff-badge{font-weight:600;color:var(--ol);background:rgba(232,98,26,0.1);border-radius:6px;padding:1px 7px;font-size:9.5px;letter-spacing:.3px;}
+.staff-badge{font-weight:600;color:var(--ol);background:color-mix(in srgb, var(--accent) 10%, transparent);border-radius:6px;padding:1px 7px;font-size:9.5px;letter-spacing:.3px;}
 /* GIFTS TAB */
   .gf-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .gf-name{font-size:15px;font-weight:500;color:var(--cream);}
 .gf-chip{font-size:9.5px;padding:2px 9px;border-radius:999px;font-weight:500;}
-.gf-chip.draft{background:rgba(74,52,40,0.08);color:rgba(74,52,40,0.6);}
-.gf-chip.active{background:rgba(74,155,92,0.14);color:var(--green);}
-.gf-chip.archived{background:rgba(214,69,69,0.1);color:var(--red);}
-.gf-meta{font-size:11px;color:rgba(74,52,40,0.55);margin-top:6px;line-height:1.6;}
-.gf-link{font-size:10.5px;word-break:break-all;background:rgba(74,52,40,0.04);border:1px dashed var(--border);border-radius:8px;padding:8px 10px;margin-top:10px;color:rgba(74,52,40,0.7);}
+.gf-chip.draft{background:color-mix(in srgb, var(--text) 8%, transparent);color:color-mix(in srgb, var(--text) 60%, transparent);}
+.gf-chip.active{background:color-mix(in srgb, var(--ok) 14%, transparent);color:var(--green);}
+.gf-chip.archived{background:color-mix(in srgb, var(--bad) 10%, transparent);color:var(--red);}
+.gf-meta{font-size:11px;color:color-mix(in srgb, var(--text) 55%, transparent);margin-top:6px;line-height:1.6;}
+.gf-link{font-size:10.5px;word-break:break-all;background:color-mix(in srgb, var(--text) 4%, transparent);border:1px dashed var(--border);border-radius:8px;padding:8px 10px;margin-top:10px;color:color-mix(in srgb, var(--text) 70%, transparent);}
 .gf-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
-.gf-btn{font-size:11px;padding:7px 12px;border-radius:9px;border:1px solid var(--border);background:rgba(74,52,40,0.04);color:rgba(74,52,40,0.75);cursor:pointer;font-family:'Mitr',sans-serif;}
-.gf-btn.primary{background:var(--orange);border-color:var(--orange);color:#fff;}
-.gf-btn.danger{color:var(--red);border-color:rgba(214,69,69,0.3);}
+.gf-btn{font-size:11px;padding:7px 12px;border-radius:9px;border:1px solid var(--border);background:color-mix(in srgb, var(--text) 4%, transparent);color:color-mix(in srgb, var(--text) 75%, transparent);cursor:pointer;font-family:'Mitr',sans-serif;}
+.gf-btn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+.gf-btn.danger{color:var(--red);border-color:color-mix(in srgb, var(--bad) 30%, transparent);}
 .gf-coupon{border-top:1px solid var(--border);padding:10px 0;font-size:12px;}
 .gf-coupon:first-of-type{margin-top:12px;}
 .gf-ctop{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .gf-cstat{font-size:9.5px;padding:2px 9px;border-radius:999px;font-weight:500;}
-.gf-cstat.available{background:rgba(232,134,58,0.14);color:var(--orange);}
-.gf-cstat.requested{background:rgba(214,160,40,0.18);color:#9A6B00;}
-.gf-cstat.delivered{background:rgba(74,155,92,0.14);color:var(--green);}
-.gf-cdetail{font-size:11px;color:rgba(74,52,40,0.6);margin-top:5px;line-height:1.6;}
+.gf-cstat.available{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--orange);}
+.gf-cstat.requested{background:rgba(214,160,40,0.18);color:var(--warn);}
+.gf-cstat.delivered{background:color-mix(in srgb, var(--ok) 14%, transparent);color:var(--green);}
+.gf-cdetail{font-size:11px;color:color-mix(in srgb, var(--text) 60%, transparent);margin-top:5px;line-height:1.6;}
 .gf-form textarea,.gf-form input{font-size:16px;}
 .gf-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 /* GTKY TAB */
@@ -272,47 +276,47 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 .gtky-q-item:last-child{border-bottom:none;}
 .gtky-q-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
 .gtky-q-text{font-size:13px;color:var(--cream);font-weight:500;line-height:1.5;}
-.gtky-q-meta{font-size:10px;color:rgba(74,52,40,0.4);margin-top:4px;}
-.gtky-badge{font-size:9px;padding:2px 8px;border-radius:999px;background:rgba(232,98,26,0.15);color:var(--ol);white-space:nowrap;}
-.gtky-badge.expiring{background:rgba(220,100,100,0.15);color:var(--red);}
-.gtky-opts{font-size:11px;color:rgba(74,52,40,0.55);margin-top:6px;}
+.gtky-q-meta{font-size:10px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:4px;}
+.gtky-badge{font-size:9px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb, var(--accent) 15%, transparent);color:var(--ol);white-space:nowrap;}
+.gtky-badge.expiring{background:color-mix(in srgb, var(--bad) 15%, transparent);color:var(--red);}
+.gtky-opts{font-size:11px;color:color-mix(in srgb, var(--text) 55%, transparent);margin-top:6px;}
 .gtky-actions{display:flex;gap:8px;margin-top:8px;}
-.gtky-btn-sm{font-size:10.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(74,52,40,0.04);color:rgba(74,52,40,0.7);cursor:pointer;font-family:'Mitr',sans-serif;}
-.gtky-btn-sm.danger{color:var(--red);border-color:rgba(220,100,100,0.3);}
+.gtky-btn-sm{font-size:10.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:color-mix(in srgb, var(--text) 4%, transparent);color:color-mix(in srgb, var(--text) 70%, transparent);cursor:pointer;font-family:'Mitr',sans-serif;}
+.gtky-btn-sm.danger{color:var(--red);border-color:color-mix(in srgb, var(--bad) 30%, transparent);}
 .gtky-cust-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
 .gtky-cust-row:last-child{border-bottom:none;}
 .gtky-cust-row input{width:auto;}
 .opt-input-row{display:flex;gap:6px;margin-top:6px;}
 .opt-input-row input{flex:1;}
-.opt-input-row button{background:rgba(232,98,26,0.15);border:1px solid rgba(232,98,26,0.35);color:var(--ol);border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer;}
-.opt-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:rgba(74,52,40,0.05);border:1px solid var(--border);border-radius:999px;padding:4px 10px;margin:4px 6px 0 0;color:rgba(74,52,40,0.75);}
+.opt-input-row button{background:color-mix(in srgb, var(--accent) 15%, transparent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);color:var(--ol);border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer;}
+.opt-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;background:color-mix(in srgb, var(--text) 5%, transparent);border:1px solid var(--border);border-radius:999px;padding:4px 10px;margin:4px 6px 0 0;color:color-mix(in srgb, var(--text) 75%, transparent);}
 .opt-chip button{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;padding:0;}
 
 #view-control,#view-beans{padding:0;max-width:none;}
 .view{max-width:640px;}
 #gfList{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .gf-top{font-size:16px;font-weight:700;margin-bottom:12px;}
-.gf-tile{position:relative;aspect-ratio:4/5;border-radius:20px;background:linear-gradient(160deg,#F9D9B8,#F2B988) center/cover no-repeat;overflow:hidden;cursor:pointer;box-shadow:0 4px 14px rgba(120,70,30,.18);}
+.gf-tile{position:relative;aspect-ratio:4/5;border-radius:20px;background:linear-gradient(160deg,var(--accent-soft),var(--raised)) center/cover no-repeat;overflow:hidden;cursor:pointer;box-shadow:0 4px 14px rgba(120,70,30,.18);}
 .gf-tile .gf-chip{position:absolute;top:10px;right:10px;z-index:2;}
 .gf-ph{position:absolute;inset:0;display:grid;place-items:center;font-size:54px;}
-.gf-tilebar{position:absolute;left:0;right:0;bottom:0;padding:38px 12px 12px;background:linear-gradient(transparent,rgba(30,15,5,.74));color:#fff;}
+.gf-tilebar{position:absolute;left:0;right:0;bottom:0;padding:38px 12px 12px;background:linear-gradient(transparent,rgba(30,15,5,.74));color:var(--on-accent);}
 .gf-tname{font-size:16px;font-weight:700;line-height:1.25;}
 .gf-dots{margin-top:6px;}
-.gf-dots i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;margin-right:4px;}
-.gf-dots i.on{background:#fff;}
-.gf-new{display:grid;place-items:center;border:2px dashed #E8B98A;background:#FFF3E6;color:#C4723A;box-shadow:none;text-align:center;font-size:13px;}
+.gf-dots i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--surface);margin-right:4px;}
+.gf-dots i.on{background:var(--surface);}
+.gf-new{display:grid;place-items:center;border:2px dashed var(--accent);background:var(--accent-soft);color:var(--accent-text);box-shadow:none;text-align:center;font-size:13px;}
 .gf-new b{font-size:30px;font-weight:400;}
 .gf-sheet{position:fixed;inset:0;z-index:50;background:rgba(30,16,6,.6);display:none;overflow-y:auto;}
 .gf-sheet.on{display:block;}
-.gf-sheetin{background:#FFF8F0;max-width:560px;margin:0 auto;min-height:100%;}
-.gf-cover{position:relative;aspect-ratio:4/3;background:linear-gradient(160deg,#F9D9B8,#F2B988) center/cover no-repeat;}
+.gf-sheetin{background:var(--bg);max-width:560px;margin:0 auto;min-height:100%;}
+.gf-cover{position:relative;aspect-ratio:4/3;background:linear-gradient(160deg,var(--accent-soft),var(--raised)) center/cover no-repeat;}
 .gf-x{position:absolute;top:12px;left:12px;z-index:3;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.9);font-size:16px;cursor:pointer;}
-.gf-covbar{position:absolute;left:0;right:0;bottom:0;padding:40px 16px 14px;background:linear-gradient(transparent,rgba(30,15,5,.75));color:#fff;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;}
+.gf-covbar{position:absolute;left:0;right:0;bottom:0;padding:40px 16px 14px;background:linear-gradient(transparent,rgba(30,15,5,.75));color:var(--on-accent);display:flex;justify-content:space-between;align-items:flex-end;gap:8px;}
 .gf-covname{font-size:22px;font-weight:700;}
 .gf-body{padding:14px 16px 40px;}
 .gf-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
-.gf-pill{font-size:11.5px;background:#fff;border:1px solid #F0E4D8;border-radius:99px;padding:4px 10px;color:#6b4e38;}
-.gf-sec{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#A8876F;margin:16px 0 6px;}
+.gf-pill{font-size:11.5px;background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:#6b4e38;}
+.gf-sec{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:16px 0 6px;}
 .gf-file{cursor:pointer;display:inline-flex;align-items:center;}
 .gf-tile .gf-chip,.gf-covbar .gf-chip{background:rgba(255,255,255,.92);}
 .gf-actions .gf-btn{display:inline-flex;align-items:center;}
@@ -323,13 +327,13 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
-<div id="pinGateOverlay" style="position:fixed;inset:0;background:#FFF8F0;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;font-family:-apple-system,'Segoe UI','Mitr',sans-serif;">
+<div id="pinGateOverlay" style="position:fixed;inset:0;background:var(--bg);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;font-family:-apple-system,'Segoe UI','Mitr',sans-serif;">
   <div style="font-size:36px;margin-bottom:8px;">🐱</div>
-  <div style="font-size:15px;color:#4A3428;font-weight:700;margin-bottom:4px;">กาแฟแมวส้ม</div>
-  <div style="font-size:12.5px;color:#A8876F;margin-bottom:18px;">ใส่ PIN เพื่อเข้าใช้งาน</div>
-  <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="pinGateInput" style="width:150px;text-align:center;font-size:26px;letter-spacing:10px;padding:12px 10px;border-radius:10px;border:2px solid #F0E4D8;margin-bottom:14px;font-family:inherit;">
-  <button type="button" id="pinGateSubmit" style="padding:11px 28px;border-radius:10px;border:none;background:#E8863A;color:#fff;font-weight:700;font-size:14px;font-family:inherit;">เข้าใช้งาน</button>
-  <div id="pinGateError" style="color:#D64545;font-size:12px;margin-top:10px;min-height:16px;"></div>
+  <div style="font-size:15px;color:var(--text);font-weight:700;margin-bottom:4px;">กาแฟแมวส้ม</div>
+  <div style="font-size:12.5px;color:var(--muted);margin-bottom:18px;">ใส่ PIN เพื่อเข้าใช้งาน</div>
+  <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="pinGateInput" style="width:150px;text-align:center;font-size:26px;letter-spacing:10px;padding:12px 10px;border-radius:10px;border:2px solid var(--line);margin-bottom:14px;font-family:inherit;">
+  <button type="button" id="pinGateSubmit" style="padding:11px 28px;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:14px;font-family:inherit;">เข้าใช้งาน</button>
+  <div id="pinGateError" style="color:var(--bad);font-size:12px;margin-top:10px;min-height:16px;"></div>
 </div>
 <script>
 (function(){
@@ -361,7 +365,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
   <div class="brand">🐱 กาแฟแมวส้ม</div>
   <h1>Admin</h1>
   <div class="sub">Control Panel — แก้กฎของระบบ</div>
-  <a href="./logs.html" style="display:inline-block;margin-top:10px;font-size:12px;color:#A8876F;text-decoration:underline;">📋 ดูประวัติการส่งทั้งหมด →</a>
+  <a href="./logs.html" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--muted);text-decoration:underline;">📋 ดูประวัติการส่งทั้งหมด →</a>
 </div>
 
 <div class="tabs" id="tabs">
@@ -402,10 +406,10 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
         <input type="number" id="bcMaxDays" placeholder="ไม่จำกัด" style="width:100px;">
       </div>
       <button class="btn-save" id="bcLoadBtn" style="margin-bottom:14px;">โหลดรายชื่อ</button>
-      <div id="bcSegmentResult" style="font-size:13px;color:#4A3428;margin-bottom:14px;"></div>
+      <div id="bcSegmentResult" style="font-size:13px;color:var(--text);margin-bottom:14px;"></div>
       <div style="margin-bottom:10px;">
         <label class="label" style="display:block;margin-bottom:6px;">ข้อความ (ใช้ {{name}} แทนชื่อลูกค้าได้)</label>
-        <textarea id="bcMessage" rows="4" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #F0E4D8;font-size:13.5px;font-family:inherit;color:#4A3428;resize:vertical;" placeholder="สวัสดีค่ะ {{name}} ..."></textarea>
+        <textarea id="bcMessage" rows="4" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid var(--line);font-size:13.5px;font-family:inherit;color:var(--text);resize:vertical;" placeholder="สวัสดีค่ะ {{name}} ..."></textarea>
       </div>
       <button class="btn-save" id="bcSendBtn" disabled>ส่งเลย</button>
       <div id="bcSendResult" style="font-size:13px;margin-top:10px;"></div>
@@ -444,7 +448,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
     <label style="margin-top:12px;">คำถาม</label>
     <input type="text" id="gtkyNewQText" placeholder="พิมพ์คำถามของพี่เอง">
 
-    <div style="font-size:10.5px;color:rgba(74,52,40,0.45);margin-top:10px;margin-bottom:4px;">💡 หัวข้อไอเดีย (แตะเพื่อแทรกเข้าช่องคำถาม)</div>
+    <div style="font-size:10.5px;color:color-mix(in srgb, var(--text) 45%, transparent);margin-top:10px;margin-bottom:4px;">💡 หัวข้อไอเดีย (แตะเพื่อแทรกเข้าช่องคำถาม)</div>
     <div class="chip-row" id="gtkyIdeaChipRow">
       <button type="button" class="chip gtky-idea-chip">MBTI</button>
       <button type="button" class="chip gtky-idea-chip">BIRTHDAY</button>
@@ -485,7 +489,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
     <div id="gtkyQuestionList"><div class="loading">กำลังโหลด...</div></div>
   </div>
 
-  <div class="card" style="border-color:rgba(232,98,26,0.4);background:rgba(232,98,26,0.06);">
+  <div class="card" style="border-color:color-mix(in srgb, var(--accent) 40%, transparent);background:color-mix(in srgb, var(--accent) 6%, transparent);">
     <div class="card-title" style="color:var(--ol);font-size:13px;letter-spacing:1px;">🚀 ส่งคำถามหาลูกค้า</div>
 
     <div class="chip-row" style="margin-bottom:12px;">
@@ -496,7 +500,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
     <div id="gtkySingleSendBlock">
       <label>เลือกคำถาม (⭐ = คำถามโปรด อยู่บนสุด)</label>
       <select id="gtkySendQuestionSelect"><option value="">กำลังโหลด...</option></select>
-      <div id="gtkySendQuestionPreview" style="font-size:11px;color:rgba(74,52,40,0.4);margin-top:6px;"></div>
+      <div id="gtkySendQuestionPreview" style="font-size:11px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:6px;"></div>
     </div>
 
     <div id="gtkyBatchSendBlock" style="display:none;">
@@ -504,7 +508,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
       <select id="gtkyBatchCategorySelect"><option value="">— เลือกหมวด —</option></select>
       <label style="margin-top:12px;">คำถามในชุดนี้ (ติ๊ก/ปลดเองได้)</label>
       <div id="gtkyBatchQuestionList"><div class="loading">กำลังโหลด...</div></div>
-      <div style="font-size:11px;color:rgba(74,52,40,0.4);margin-top:6px;">ลูกค้าจะได้รับแจ้งเตือน LINE แค่ครั้งเดียว กดลิงก์เข้าไปเจอคำถามที่ติ๊กไว้ครบในหน้าเดียว</div>
+      <div style="font-size:11px;color:color-mix(in srgb, var(--text) 40%, transparent);margin-top:6px;">ลูกค้าจะได้รับแจ้งเตือน LINE แค่ครั้งเดียว กดลิงก์เข้าไปเจอคำถามที่ติ๊กไว้ครบในหน้าเดียว</div>
     </div>
 
     <label style="margin-top:16px;">ส่งหาใคร</label>
@@ -522,9 +526,9 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 
   <div class="gtky-subview" id="subview-gtky-baristafb" style="display:none;">
 
-  <div class="card" style="border-color:rgba(74,155,92,0.4);background:rgba(74,155,92,0.06);">
+  <div class="card" style="border-color:color-mix(in srgb, var(--ok) 40%, transparent);background:color-mix(in srgb, var(--ok) 6%, transparent);">
     <div class="card-title" style="color:var(--green);font-size:13px;letter-spacing:1px;">📝 Barista Feedback</div>
-    <div style="font-size:11px;color:rgba(74,52,40,0.5);margin-bottom:12px;line-height:1.6;">สำหรับฟีดแบคที่ได้ยินมาจากลูกค้าโดยตรง (ไม่ได้ผ่านระบบให้คะแนน) — จะไปโผล่ในโปรไฟล์ลูกค้าคนนั้นในแท็บ "ลูกค้า"</div>
+    <div style="font-size:11px;color:color-mix(in srgb, var(--text) 50%, transparent);margin-bottom:12px;line-height:1.6;">สำหรับฟีดแบคที่ได้ยินมาจากลูกค้าโดยตรง (ไม่ได้ผ่านระบบให้คะแนน) — จะไปโผล่ในโปรไฟล์ลูกค้าคนนั้นในแท็บ "ลูกค้า"</div>
 
     <label>ลูกค้า</label>
     <select id="mfNoteCustomer"><option value="">กำลังโหลด...</option></select>
@@ -580,7 +584,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
   <div class="card">
     <div class="card-title">⚙️ สถานะระบบ</div>
     <div id="crmStatusBox"><div class="loading">กำลังโหลด...</div></div>
-    <div style="font-size:12px;color:rgba(74,52,40,0.5);margin-top:8px;">เปิด/ปิดและตั้งค่าจริงอยู่ที่หน้า Admin — ที่นี่แสดงสถานะให้ดูเฉยๆ</div>
+    <div style="font-size:12px;color:color-mix(in srgb, var(--text) 50%, transparent);margin-top:8px;">เปิด/ปิดและตั้งค่าจริงอยู่ที่หน้า Admin — ที่นี่แสดงสถานะให้ดูเฉยๆ</div>
   </div>
 
   <div class="card">
@@ -596,7 +600,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 
   <div class="card">
     <div class="card-title">⏳ รอดำเนินการ (จะเกิดขึ้นเมื่อเปิดระบบ)</div>
-    <div style="font-size:12px;color:rgba(74,52,40,0.5);margin-bottom:10px;">คำนวณสดจากข้อมูลจริงตอนนี้ — ยังไม่มีการส่งอะไรออกไปจนกว่าจะเปิด flag ที่ Admin</div>
+    <div style="font-size:12px;color:color-mix(in srgb, var(--text) 50%, transparent);margin-bottom:10px;">คำนวณสดจากข้อมูลจริงตอนนี้ — ยังไม่มีการส่งอะไรออกไปจนกว่าจะเปิด flag ที่ Admin</div>
     <div id="crmPendingList"><div class="loading">กำลังโหลด...</div></div>
   </div>
 
@@ -611,7 +615,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 
   <div class="card">
     <div class="card-title">📢 ร่างโพสต์ Social</div>
-    <div style="font-size:12px;color:rgba(74,52,40,0.5);margin-bottom:10px;">แก้ข้อความ/ใส่รูป/กด "พร้อมโพสต์" — Claude จะมาเช็คแล้วโพสต์จริงผ่าน Metricool ให้</div>
+    <div style="font-size:12px;color:color-mix(in srgb, var(--text) 50%, transparent);margin-bottom:10px;">แก้ข้อความ/ใส่รูป/กด "พร้อมโพสต์" — Claude จะมาเช็คแล้วโพสต์จริงผ่าน Metricool ให้</div>
     <div class="chip-row" style="margin-bottom:10px;">
       <button type="button" class="chip content-filter selected" data-filter="active">รอดำเนินการ</button>
       <button type="button" class="chip content-filter" data-filter="posted">โพสต์แล้ว</button>
@@ -627,19 +631,19 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 
   <div class="card">
     <div class="card-title">🏢 กลุ่มราคาลูกค้า</div>
-    <div style="font-size:12px;color:#8a6a4a;margin-bottom:12px;line-height:1.6;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
       ราคาที่ลูกค้ากลุ่มนี้จ่าย = <b>ราคากลาง</b> (ราคาใน LINE / Standard Price) − ส่วนลดต่อแก้ว · สมาชิกในกลุ่มเห็นราคาของตัวเองใน LINE อัตโนมัติ ส่วนใน brew บาริสต้ากดปุ่ม 🏢 ชิดลม หรือ 💼 Standard Price เอง (เลือกให้อัตโนมัติถ้าเลือกสมาชิกที่มีกลุ่ม)
     </div>
     <div id="priceGroupList"><div class="loading">กำลังโหลด...</div></div>
     <div class="status" id="priceGroupStatus"></div>
-    <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:rgba(74,52,40,0.4);margin:14px 0 6px;">สมาชิก — เลือกกลุ่มราคารายคน</div>
+    <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:color-mix(in srgb, var(--text) 40%, transparent);margin:14px 0 6px;">สมาชิก — เลือกกลุ่มราคารายคน</div>
     <input type="text" id="pgMemberSearch" placeholder="ค้นหาชื่อสมาชิก">
     <div id="pgMemberList" style="margin-top:8px;"></div>
   </div>
 
   <div class="card">
     <div class="card-title">🛵 ช่องทางแพลตฟอร์ม (GP)</div>
-    <div style="font-size:12px;color:#8a6a4a;margin-bottom:12px;line-height:1.6;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
       GP% ที่แพลตฟอร์มหักจากยอดขาย — Grab = 32.1% จากหน้า Finance ของ GrabMerchant วันแรก (หัก 70.62 จากยอดขาย 220 ตรงกับคอมมิชชั่น 30% + VAT 7% ของคอมมิชชั่น) ถ้า Grab เปลี่ยนเงื่อนไข มาแก้ที่นี่ได้เลย ระบบใช้ค่านี้คำนวณกำไรสุทธิทุกหน้า<br>
       <b>เกณฑ์เตือน margin</b> = ถ้ากำไรสุทธิต่อแก้วต่ำกว่าเปอร์เซ็นต์นี้ จะขึ้นสีแดงเตือนในหน้าเมนูและตอนสั่ง
     </div>
@@ -649,37 +653,37 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
 
   <div class="card">
     <div class="card-title">💳 QR รับเงิน (PromptPay)</div>
-    <div style="font-size:12px;color:#8a6a4a;margin-bottom:12px;line-height:1.6;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
       QR นี้ใช้กับหน้า "ชำระเงิน" ที่ลูกค้าสแกนจ่ายทั้งหมด — เปลี่ยนที่นี่ที่เดียว มีผลทันทีทุกจุด ไม่ต้องรอ Claude แก้โค้ด
     </div>
-    <div id="qrCurrentInfo" style="background:#FFF3E8;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#4A3428;">
+    <div id="qrCurrentInfo" style="background:var(--accent-soft);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:var(--text);">
       <div class="loading">กำลังโหลด...</div>
     </div>
 
-    <label style="font-size:12px;color:#8a6a4a;display:block;margin-bottom:6px;">อัปโหลดรูป QR ใหม่ (จากแอปธนาคาร) — ระบบจะอ่านรหัสในรูปให้อัตโนมัติ</label>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">อัปโหลดรูป QR ใหม่ (จากแอปธนาคาร) — ระบบจะอ่านรหัสในรูปให้อัตโนมัติ</label>
     <input type="file" accept="image/*" id="qrUploadInput" style="margin-bottom:10px;">
     <canvas id="qrDecodeCanvas" style="display:none;"></canvas>
 
-    <div id="qrDecodeResult" style="display:none;background:#fff;border:2px solid #4A9B5C;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-      <div style="font-size:12px;color:#4A9B5C;font-weight:700;margin-bottom:6px;">✅ อ่าน QR สำเร็จ</div>
-      <div style="font-size:11.5px;color:#4A3428;" id="qrDecodeSummary"></div>
-      <label style="font-size:11px;color:#8a6a4a;display:block;margin-top:10px;margin-bottom:4px;">ชื่อกำกับ (โชว์ให้ลูกค้าเห็นแทนเลขอ้างอิง เช่น ชื่อบัญชี)</label>
-      <input type="text" id="qrLabelInput" placeholder="เช่น Make by KBank - MS. MORAKOT HONGWORAWAT" style="width:100%;padding:8px 10px;border-radius:8px;border:2px solid #F0E4D8;font-size:12.5px;margin-bottom:10px;">
+    <div id="qrDecodeResult" style="display:none;background:var(--surface);border:2px solid var(--ok);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--ok);font-weight:700;margin-bottom:6px;">✅ อ่าน QR สำเร็จ</div>
+      <div style="font-size:11.5px;color:var(--text);" id="qrDecodeSummary"></div>
+      <label style="font-size:11px;color:var(--muted);display:block;margin-top:10px;margin-bottom:4px;">ชื่อกำกับ (โชว์ให้ลูกค้าเห็นแทนเลขอ้างอิง เช่น ชื่อบัญชี)</label>
+      <input type="text" id="qrLabelInput" placeholder="เช่น Make by KBank - MS. MORAKOT HONGWORAWAT" style="width:100%;padding:8px 10px;border-radius:8px;border:2px solid var(--line);font-size:12.5px;margin-bottom:10px;">
       <button type="button" class="btn" id="qrSaveBtn" style="width:100%;">บันทึกใช้ QR นี้แทน</button>
     </div>
-    <div id="qrDecodeError" style="display:none;background:#FDECEC;border:2px solid #D64545;border-radius:10px;padding:12px 14px;color:#D64545;font-size:12px;"></div>
+    <div id="qrDecodeError" style="display:none;background:var(--bad-soft);border:2px solid var(--bad);border-radius:10px;padding:12px 14px;color:var(--bad);font-size:12px;"></div>
     <div class="status" id="qrSettingsStatus"></div>
   </div>
 
   <div class="card">
     <div class="card-title">🎯 รูปมิชชั่น 975 แก้ว</div>
-    <div style="font-size:12px;color:#8a6a4a;margin-bottom:12px;line-height:1.6;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
       รูปนี้ใช้ประกอบโมเสกแก้ว 975 ใบในแท็บ Sales & Customers — เปลี่ยนที่นี่ที่เดียว มีผลทันที ไม่ต้องรอ Claude แก้โค้ด
     </div>
     <div id="missionPhotoCurrent" style="margin-bottom:14px;">
       <div class="loading">กำลังโหลด...</div>
     </div>
-    <label style="font-size:12px;color:#8a6a4a;display:block;margin-bottom:6px;">อัปโหลดรูปใหม่</label>
+    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">อัปโหลดรูปใหม่</label>
     <input type="file" accept="image/*" id="missionPhotoInput" style="margin-bottom:10px;">
     <div class="status" id="missionPhotoStatus"></div>
   </div>
@@ -836,7 +840,7 @@ input:focus, select:focus, textarea:focus{border-color:rgba(232,98,26,0.5);}
       const textarea = document.createElement('textarea');
       textarea.value = typeof row.value === 'string' ? row.value : (row.value || '');
       textarea.rows = 4;
-      textarea.style.cssText = 'width:100%;padding:10px 12px;border-radius:10px;border:2px solid #F0E4D8;font-size:13.5px;font-family:inherit;color:#4A3428;resize:vertical;margin-bottom:8px;';
+      textarea.style.cssText = 'width:100%;padding:10px 12px;border-radius:10px;border:2px solid var(--line);font-size:13.5px;font-family:inherit;color:var(--text);resize:vertical;margin-bottom:8px;';
       const btn = document.createElement('button');
       btn.className = 'btn-save';
       btn.textContent = 'บันทึกข้อความ';
@@ -890,7 +894,7 @@ async function loadPendingApprovals() {
     item.innerHTML = `
       <div class="label">${TYPE_LABELS[p.automation_type] || p.automation_type} — ${p.candidate_count} คน</div>
       <div class="desc">${names}</div>
-      <div class="desc" style="white-space:pre-wrap;background:#FFF8F0;padding:8px;border-radius:8px;margin:8px 0;">${p.message_template}</div>
+      <div class="desc" style="white-space:pre-wrap;background:var(--bg);padding:8px;border-radius:8px;margin:8px 0;">${p.message_template}</div>
       <div style="display:flex;gap:8px;">
         <button class="btn-save" data-action="approve" data-id="${p.id}">✅ ส่งเลย</button>
         <button class="btn-save" data-action="reject" data-id="${p.id}" style="background:#C4685A;">❌ ยกเลิก</button>
@@ -1242,10 +1246,10 @@ async function loadChannelGpSettings() {
   const statusEl = document.getElementById('channelGpStatus');
   try {
     const chans = await sbr('sales_channels?select=channel_key,label_th,gp_pct,margin_alert_pct&gp_pct=gt.0&active=eq.true&order=sort_order');
-    if (!chans.length) { host.innerHTML = '<div style="font-size:12px;color:#A8876F;">ยังไม่มีช่องทางแพลตฟอร์ม</div>'; return; }
+    if (!chans.length) { host.innerHTML = '<div style="font-size:12px;color:var(--muted);">ยังไม่มีช่องทางแพลตฟอร์ม</div>'; return; }
     host.innerHTML = chans.map(c => `
-      <div data-ch="${c.channel_key}" style="background:#FFF3E8;border-radius:12px;padding:12px 14px;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:700;color:#4A3428;margin-bottom:8px;">🛵 ${c.label_th}</div>
+      <div data-ch="${c.channel_key}" style="background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">🛵 ${c.label_th}</div>
         <div class="row2">
           <div><label>GP ที่ถูกหัก (%)</label><input type="number" min="0" max="99" step="0.1" class="gp-input" value="${Number(c.gp_pct)}"></div>
           <div><label>เกณฑ์เตือน margin (%)</label><input type="number" min="0" max="99" step="1" class="alert-input" value="${Number(c.margin_alert_pct)}"></div>
@@ -1274,7 +1278,7 @@ async function loadChannelGpSettings() {
         } catch (e) { statusEl.style.display = 'block'; statusEl.className = 'status error'; statusEl.textContent = 'บันทึกไม่สำเร็จ: ' + e.message; }
       });
     });
-  } catch (e) { host.innerHTML = '<div style="font-size:12px;color:#D64545;">โหลดไม่สำเร็จ: ' + e.message + '</div>'; }
+  } catch (e) { host.innerHTML = '<div style="font-size:12px;color:var(--bad);">โหลดไม่สำเร็จ: ' + e.message + '</div>'; }
 }
 
 async function loadPriceGroupSettings() {
@@ -1288,9 +1292,9 @@ async function loadPriceGroupSettings() {
       sbr('members?select=id,display_name,price_group,is_group_rep&order=display_name&limit=500'),
     ]);
     listEl.innerHTML = groups.map(g => `
-      <div data-pg="${g.key}" style="background:#FFF3E8;border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
-        <div style="flex:1;font-size:13px;font-weight:700;color:#4A3428;">${g.label_th}<div style="font-size:10.5px;font-weight:400;color:#A8876F;">${g.key === 'standard' ? 'ราคากลาง (ไม่ลด)' : 'ลดต่อแก้วจากราคากลาง (บาท)'}</div></div>
-        ${g.key === 'standard' ? '<span style="font-size:12px;color:#A8876F;">฿0</span>' : `<input type="number" class="pg-discount" min="0" step="1" value="${Number(g.discount_per_cup)}" style="width:90px;margin:0;"><button type="button" class="btn pg-save" style="width:auto;padding:9px 14px;">บันทึก</button>`}
+      <div data-pg="${g.key}" style="background:var(--accent-soft);border-radius:12px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;font-size:13px;font-weight:700;color:var(--text);">${g.label_th}<div style="font-size:10.5px;font-weight:400;color:var(--muted);">${g.key === 'standard' ? 'ราคากลาง (ไม่ลด)' : 'ลดต่อแก้วจากราคากลาง (บาท)'}</div></div>
+        ${g.key === 'standard' ? '<span style="font-size:12px;color:var(--muted);">฿0</span>' : `<input type="number" class="pg-discount" min="0" step="1" value="${Number(g.discount_per_cup)}" style="width:90px;margin:0;"><button type="button" class="btn pg-save" style="width:auto;padding:9px 14px;">บันทึก</button>`}
       </div>`).join('');
     listEl.querySelectorAll('[data-pg]').forEach(row => {
       const key = row.dataset.pg; const btn = row.querySelector('.pg-save'); if (!btn) return;
@@ -1303,10 +1307,10 @@ async function loadPriceGroupSettings() {
     });
     const renderMembers = (q) => {
       const rows = members.filter(m => !q || (m.display_name || '').toLowerCase().includes(q.toLowerCase()));
-      memEl.innerHTML = rows.map(m => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(74,52,40,0.08);">
-        <span style="flex:1;font-size:13px;color:#4A3428;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(m.display_name || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</span>
-        <label style="font-size:11px;color:#8a6a4a;white-space:nowrap;display:flex;align-items:center;gap:4px;"><input type="checkbox" data-rep="${m.id}" ${m.is_group_rep ? 'checked' : ''} style="width:16px;height:16px;margin:0;"> ตัวแทนกลุ่ม</label>
-        <select data-member="${m.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px;">${groups.map(g => `<option value="${g.key}" ${m.price_group === g.key ? 'selected' : ''}>${g.label_th}</option>`).join('')}</select></div>`).join('') || '<div style="font-size:12px;color:#A8876F;">ไม่พบสมาชิก</div>';
+      memEl.innerHTML = rows.map(m => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid color-mix(in srgb, var(--text) 8%, transparent);">
+        <span style="flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(m.display_name || '(ไม่มีชื่อ)').replace(/</g, '&lt;')}</span>
+        <label style="font-size:11px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:4px;"><input type="checkbox" data-rep="${m.id}" ${m.is_group_rep ? 'checked' : ''} style="width:16px;height:16px;margin:0;"> ตัวแทนกลุ่ม</label>
+        <select data-member="${m.id}" style="width:auto;margin:0;padding:6px 8px;font-size:13px;">${groups.map(g => `<option value="${g.key}" ${m.price_group === g.key ? 'selected' : ''}>${g.label_th}</option>`).join('')}</select></div>`).join('') || '<div style="font-size:12px;color:var(--muted);">ไม่พบสมาชิก</div>';
       memEl.querySelectorAll('input[data-rep]').forEach(cb => cb.addEventListener('change', async () => {
         const m = members.find(x => String(x.id) === cb.dataset.rep);
         try { await sbr(`members?id=eq.${encodeURIComponent(cb.dataset.rep)}`, { method: 'PATCH', body: JSON.stringify({ is_group_rep: cb.checked }) }); if (m) m.is_group_rep = cb.checked; say(true, `✅ ${m ? m.display_name : 'สมาชิก'} ${cb.checked ? 'เป็นตัวแทนกลุ่ม — ออเดอร์ใหม่ไม่ส่งขอรีวิวทาง LINE' : 'ไม่ใช่ตัวแทนกลุ่มแล้ว'}`); }
@@ -1320,7 +1324,7 @@ async function loadPriceGroupSettings() {
     };
     renderMembers('');
     document.getElementById('pgMemberSearch').oninput = (e) => renderMembers(e.target.value.trim());
-  } catch (e) { listEl.innerHTML = '<div style="font-size:12px;color:#D64545;">โหลดไม่สำเร็จ: ' + e.message + '</div>'; }
+  } catch (e) { listEl.innerHTML = '<div style="font-size:12px;color:var(--bad);">โหลดไม่สำเร็จ: ' + e.message + '</div>'; }
 }
 
 async function loadSettingsTab() {
@@ -1337,7 +1341,7 @@ async function loadSettingsTab() {
       const updated = new Date(row.updated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
       infoEl.innerHTML = `
         <div><b>ปัจจุบัน:</b> ${row.label || '(ไม่มีชื่อกำกับ)'}</div>
-        <div style="margin-top:4px;color:#8a6a4a;">ประเภท: ${ID_TAG_LABEL[row.promptpay_id_tag] || row.promptpay_id_tag} · แก้ไขล่าสุด ${updated}</div>
+        <div style="margin-top:4px;color:var(--muted);">ประเภท: ${ID_TAG_LABEL[row.promptpay_id_tag] || row.promptpay_id_tag} · แก้ไขล่าสุด ${updated}</div>
       `;
     }
   } catch (e) {
@@ -1507,7 +1511,7 @@ async function loadCrmStatus() {
       const on = map[key] === true;
       return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
         <span>${label}</span>
-        <span style="font-weight:600;color:${on ? 'var(--green)' : 'rgba(74,52,40,0.4)'};">${on ? '● เปิดอยู่' : '○ ปิดอยู่'}</span>
+        <span style="font-weight:600;color:${on ? 'var(--green)' : 'color-mix(in srgb, var(--text) 40%, transparent)'};">${on ? '● เปิดอยู่' : '○ ปิดอยู่'}</span>
       </div>`;
     }).join('');
   } catch (e) {
@@ -1566,7 +1570,7 @@ function renderCrmRewards() {
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;">
       <div>
         <div style="font-weight:600;">${r.name}</div>
-        <div style="font-size:12px;color:rgba(74,52,40,0.55);">${r.line}</div>
+        <div style="font-size:12px;color:color-mix(in srgb, var(--text) 55%, transparent);">${r.line}</div>
       </div>
       ${right}
     </div>`;
@@ -1628,7 +1632,7 @@ async function loadCrmPending() {
     if (loyalty && loyalty.length) {
       sections.push(`<div style="font-weight:600;font-size:13px;margin:10px 0 4px;">🎁 Loyalty (${loyalty.length})</div>` +
         loyalty.map(c => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
-          <div><span>${c.customer_name}</span><br><span style="font-size:12px;color:rgba(74,52,40,0.55);">ครบ ${c.milestone} แก้ว (สะสม ${c.paid_cups})</span></div>
+          <div><span>${c.customer_name}</span><br><span style="font-size:12px;color:color-mix(in srgb, var(--text) 55%, transparent);">ครบ ${c.milestone} แก้ว (สะสม ${c.paid_cups})</span></div>
           <button type="button" class="btn btn-capture-loyalty" style="padding:6px 12px;font-size:12.5px;white-space:nowrap;"
             data-line="${String(c.line_user_id).replace(/"/g,'&quot;')}"
             data-name="${String(c.customer_name).replace(/"/g,'&quot;')}"
@@ -1644,7 +1648,7 @@ async function loadCrmPending() {
     if (winback && winback.length) {
       sections.push(`<div style="font-weight:600;font-size:13px;margin:10px 0 4px;">👋 Win-back (${winback.length})</div>` +
         winback.map(c => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
-          <span>${c.customer_name}</span><span style="font-size:12px;color:rgba(74,52,40,0.55);">หายไป ${c.days_since} วัน</span>
+          <span>${c.customer_name}</span><span style="font-size:12px;color:color-mix(in srgb, var(--text) 55%, transparent);">หายไป ${c.days_since} วัน</span>
         </div>`).join(''));
     }
 
@@ -1707,11 +1711,11 @@ function renderContentDrafts() {
       ? `<span style="font-size:11px;color:var(--green);font-weight:600;">✓ โพสต์แล้ว</span>`
       : r.status === 'ready'
         ? `<span style="font-size:11px;color:var(--orange);font-weight:600;">⏳ พร้อมโพสต์ — รอ Claude</span>`
-        : `<span style="font-size:11px;color:rgba(74,52,40,0.5);">📝 ร่าง</span>`;
+        : `<span style="font-size:11px;color:color-mix(in srgb, var(--text) 50%, transparent);">📝 ร่าง</span>`;
 
     return `<div class="card" style="margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:12px;font-weight:600;color:rgba(74,52,40,0.6);">${PILLAR_LABELS[r.pillar] || r.pillar}</span>
+        <span style="font-size:12px;font-weight:600;color:color-mix(in srgb, var(--text) 60%, transparent);">${PILLAR_LABELS[r.pillar] || r.pillar}</span>
         ${statusBadge}
       </div>
       <textarea class="draft-caption" data-id="${r.id}" rows="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--border);font-family:inherit;font-size:13.5px;margin-bottom:8px;" ${r.status === 'posted' ? 'disabled' : ''}>${r.caption}</textarea>
@@ -1721,10 +1725,10 @@ function renderContentDrafts() {
         <div style="display:flex;gap:8px;">
           <button type="button" class="btn-save save-caption-btn" data-id="${r.id}">บันทึกข้อความ</button>
           ${r.status === 'draft' ? `<button type="button" class="btn-save mark-ready-btn" data-id="${r.id}" style="background:var(--orange);">✓ พร้อมโพสต์</button>` : ''}
-          ${r.status === 'ready' ? `<button type="button" class="btn-save unmark-ready-btn" data-id="${r.id}" style="background:rgba(74,52,40,0.4);">ยกเลิกพร้อมโพสต์</button>` : ''}
+          ${r.status === 'ready' ? `<button type="button" class="btn-save unmark-ready-btn" data-id="${r.id}" style="background:color-mix(in srgb, var(--text) 40%, transparent);">ยกเลิกพร้อมโพสต์</button>` : ''}
         </div>
-      ` : `<div style="font-size:11px;color:rgba(74,52,40,0.4);">โพสต์เมื่อ ${new Date(r.posted_at).toLocaleDateString('th-TH')}</div>`}
-      <div style="font-size:10px;color:rgba(74,52,40,0.35);margin-top:6px;">สร้างเมื่อ ${dateStr}</div>
+      ` : `<div style="font-size:11px;color:color-mix(in srgb, var(--text) 40%, transparent);">โพสต์เมื่อ ${new Date(r.posted_at).toLocaleDateString('th-TH')}</div>`}
+      <div style="font-size:10px;color:color-mix(in srgb, var(--text) 35%, transparent);margin-top:6px;">สร้างเมื่อ ${dateStr}</div>
     </div>`;
   }).join('');
 
@@ -1814,7 +1818,7 @@ async function loadCrmOutreach() {
       const dateStr = new Date(r.last_sent_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
       return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
         <span style="font-weight:600;">${r.customer_name || r.line_user_id}</span>
-        <span style="font-size:12px;color:rgba(74,52,40,0.55);">ทักล่าสุด ${dateStr} (${r.send_count || 1} ครั้ง)</span>
+        <span style="font-size:12px;color:color-mix(in srgb, var(--text) 55%, transparent);">ทักล่าสุด ${dateStr} (${r.send_count || 1} ครั้ง)</span>
       </div>`;
     }).join('');
   } catch (e) {
@@ -1949,7 +1953,7 @@ if (!members.length) {
               </div>
               <div class="fb-sub">${g.gtky_questions && g.gtky_questions.gtky_categories ? g.gtky_questions.gtky_categories.name + ' · ' : ''}${fmtDateTimeFb(g.responded_at)}</div>
               <div class="fb-comment">${g.answer_text}</div>
-              ${g.note ? `<div class="fb-comment" style="color:rgba(74,52,40,0.55);font-style:italic;margin-top:2px;">📝 ${g.note}</div>` : ''}
+              ${g.note ? `<div class="fb-comment" style="color:color-mix(in srgb, var(--text) 55%, transparent);font-style:italic;margin-top:2px;">📝 ${g.note}</div>` : ''}
             </div>
           `).join('')}
       ` : '';
@@ -2023,7 +2027,7 @@ if (!members.length) {
         <div class="cust-card" data-id="${m.id}">
           <div class="cust-head">
             <div>
-              <div class="cust-name">${rankBadge} ${m.display_name} ${m.member_type === 'walkin' ? '<span class="gtky-badge" style="background:rgba(74,52,40,0.08);color:rgba(74,52,40,0.45);">🚶 Not a Member</span>' : '<span class="gtky-badge">🔗 LINE Member</span>'}</div>
+              <div class="cust-name">${rankBadge} ${m.display_name} ${m.member_type === 'walkin' ? '<span class="gtky-badge" style="background:color-mix(in srgb, var(--text) 8%, transparent);color:color-mix(in srgb, var(--text) 45%, transparent);">🚶 Not a Member</span>' : '<span class="gtky-badge">🔗 LINE Member</span>'}</div>
               <div class="cust-meta">${myOrders.length} cups${(() => { const f = myOrders.filter(o => o.order_type === 'our_treat' || o.order_type === 'reward').length; return f ? ' (' + f + ' free)' : ''; })()}${myFeedback.length ? ' · ' + myFeedback.length + ' feedback' : ''}${myGtky.length ? ' · ' + myGtky.length + ' GTKY' : ''}${myManualNotes.length ? ' · ' + myManualNotes.length + ' notes' : ''}</div>
             </div>
             ${avgRating !== null ? `<div class="cust-rating">⭐ ${avgRating.toFixed(1)}</div>` : ''}
@@ -2307,7 +2311,7 @@ async function gtkyLoadQuestions() {
       const badge = q.is_permanent
         ? '<span class="gtky-badge">ถาวร</span>'
         : `<span class="gtky-badge expiring">หมดอายุ ${q.expires_at ? gtkyFmtDate(q.expires_at) : '-'}</span>`;
-      const activeBadge = q.active ? '' : '<span class="gtky-badge" style="background:rgba(74,52,40,0.08);color:rgba(74,52,40,0.4);">ปิดใช้งาน</span>';
+      const activeBadge = q.active ? '' : '<span class="gtky-badge" style="background:color-mix(in srgb, var(--text) 8%, transparent);color:color-mix(in srgb, var(--text) 40%, transparent);">ปิดใช้งาน</span>';
       return `
         <div class="gtky-q-item">
           <div class="gtky-q-top">
