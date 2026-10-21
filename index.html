@@ -323,6 +323,35 @@ input:focus, select:focus, textarea:focus{border-color:color-mix(in srgb, var(--
 .gf-file input{display:none;}
 #gfFormWrap:not(:empty){position:fixed;inset:0;z-index:60;background:rgba(40,25,15,.55);overflow:auto;padding:16px;}
 #gfFormWrap .gf-form{max-width:520px;margin:20px auto;}
+
+  /* customer persona card */
+  .idc{background:linear-gradient(135deg,var(--raised),var(--surface));border:1px solid var(--line);border-radius:16px;padding:12px 14px 10px;cursor:pointer}
+  .idc-top{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:1.5px;font-weight:700;color:var(--accent-text);margin-bottom:8px}
+  .idc-body{display:flex;gap:12px;align-items:center}
+  .idc-photo{width:64px;height:76px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;color:var(--accent-text);flex:none}
+  .idc-info{min-width:0}.idc-name{font-size:18px;font-weight:700;color:var(--text);line-height:1.25}
+  .idc-title{font-size:13.5px;font-weight:700;color:var(--accent-text);margin-top:3px}
+  .idc-one{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45}
+  .idc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+  .idc-grid div{display:flex;flex-direction:column;min-width:0}
+  .idc-grid span{font-size:10.5px;color:var(--muted)}
+  .idc-grid b{font-size:13px;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .idc-dim{color:var(--muted);font-weight:400}.idc-warn{color:var(--bad);font-weight:700;font-size:11px}
+  .idc-alert{margin-top:8px;font-size:12px;font-weight:700;color:var(--bad);background:var(--bad-soft);border-radius:8px;padding:5px 9px}
+  .idc-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .idc-tags span{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--text);background:var(--surface)}
+  .idc-hint{font-size:10.5px;color:var(--muted);text-align:right;margin-top:6px}
+  .cust-detail.open .idc-hint{display:none}
+  .psec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+  .psec-h{font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:6px}
+  .psec p{margin:0;font-size:13.5px;line-height:1.7;color:var(--text)}
+  .psec-note{font-size:10.5px;color:var(--muted);margin-top:6px}
+  .pst{display:grid;grid-template-columns:86px 1fr;gap:8px;font-size:13px;line-height:1.55;padding:6px 0;border-top:1px solid var(--line);color:var(--text)}
+  .pst:first-of-type{border-top:none}
+  .pst>span{font-size:11.5px;color:var(--muted);font-weight:600;padding-top:1px}
+  .pst ul{margin:0;padding-left:16px}.pst.warn>div{color:var(--bad)}
+  .praw{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px}
+  .praw summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted);min-height:36px;display:flex;align-items:center}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -1850,15 +1879,17 @@ async function loadCustomerTab() {
   listEl.innerHTML = '<div class="loading">กำลังโหลด...</div>';
 
   try {
-    const [members, orders, feedback, gtkyAnswers, manualNotes, allergyRows, ingredientRows] = await Promise.all([
+    const [members, orders, feedback, gtkyAnswers, manualNotes, allergyRows, ingredientRows, personaRows] = await Promise.all([
       sbr('members?select=id,line_user_id,display_name,member_type,created_at&order=created_at.asc'),
-      sbr('preorders?select=line_user_id,menu_item_name,bean_name,brewed_at,price,bean_surcharge,order_type,omakase_set_id&brewed=eq.true&line_user_id=not.is.null'),
+      sbr('preorders?select=line_user_id,menu_item_name,bean_name,brewed_at,price,bean_surcharge,order_type,omakase_set_id,sweetness,milk_name,wanted_date,channel&brewed=eq.true&line_user_id=not.is.null'),
       sbr('feedback_requests?select=*&rating=not.is.null&order=responded_at.desc'),
       sbr('gtky_sends?select=*,gtky_questions(question_text,gtky_categories(name))&answer_text=not.is.null&order=responded_at.desc'),
       sbr('manual_feedback_notes?select=*&order=noted_at.desc'),
       sbr('customer_allergies?select=*&order=created_at.asc'),
       sbr('ingredients?select=id,name,stock_group&active=eq.true&stock_group=neq.packaging&order=name.asc'),
+      sbr('customer_personas?select=*').catch(() => []),
     ]);
+    const personaMap = {}; (personaRows || []).forEach(p => personaMap[p.line_user_id] = p);
 
     // ⚠️ แพ้/ไม่กิน — เตรียม dropdown ตัวเลือกส่วนผสม (ใช้ร่วมกันทุกการ์ดลูกค้า) + map ชื่อส่วนผสม
     // หมวดวัตถุดิบอ่านจากตารางกลาง ingredient_groups (ไม่ hardcode แล้ว) — เรียงตาม sort_order
@@ -2023,23 +2054,75 @@ if (!members.length) {
           `).join('')}
       ` : '';
 
+      // ---------- persona card: facts are counted live from orders; the synthesis + strategy come from customer_personas ----------
+      const P = personaMap[m.line_user_id];
+      const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const modeOf = arr => { const c = {}; arr.filter(Boolean).forEach(x => c[x] = (c[x] || 0) + 1); const e = Object.entries(c).sort((a, b) => b[1] - a[1]); return e.length ? e : null; };
+      const own = myOrders.filter(o => o.order_type !== 'staff');
+      const topMenus = modeOf(own.map(o => o.menu_item_name));
+      const topBean = modeOf(own.map(o => o.bean_name));
+      const topSweet = modeOf(own.map(o => o.sweetness));
+      const topMilk = modeOf(own.map(o => o.milk_name));
+      const dates = myOrders.map(o => o.wanted_date || (o.brewed_at || '').slice(0, 10)).filter(Boolean).sort();
+      const firstD = dates[0], lastD = dates[dates.length - 1];
+      const visitDays = new Set(dates).size;
+      const daysAgo = lastD ? Math.round((Date.now() - new Date(lastD + 'T12:00:00+07:00')) / 86400000) : null;
+      const thD = d => d ? new Date(d + 'T12:00:00+07:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : '–';
+      const pct = (e) => e ? `${esc(e[0][0])} <span class="idc-dim">${Math.round(e[0][1] / e.reduce((s, x) => s + x[1], 0) * 100)}%</span>` : '–';
+      const initial = (m.display_name || '?').trim().charAt(0).toUpperCase();
+      const severe = myAllergies.filter(a => a.kind === 'no_coffee' || a.severity === 'แพ้').map(a => a.kind === 'no_coffee' ? 'ไม่กินกาแฟ' : 'แพ้' + (ingredientNameById[a.ingredient_id] || ''));
+      const idCard = `
+        <div class="idc">
+          <div class="idc-top"><span>MAEWSOM · บัตรลูกค้า</span><span>${rankBadge}</span></div>
+          <div class="idc-body">
+            <div class="idc-photo">${esc(initial)}</div>
+            <div class="idc-info">
+              <div class="idc-name">${esc(m.display_name)}${m.member_type === 'walkin' ? ' <span class="idc-dim">(walk-in)</span>' : ''}${m.line_user_id && m.member_type !== 'walkin' ? ' 🔗' : ''}</div>
+              <div class="idc-title">${P ? esc(P.title) : '<span class="idc-dim">ข้อมูลยังน้อย — รอวิเคราะห์</span>'}</div>
+              ${P && P.one_liner ? `<div class="idc-one">${esc(P.one_liner)}</div>` : ''}
+            </div>
+          </div>
+          <div class="idc-grid">
+            <div><span>เมนูประจำ</span><b>${topMenus ? esc(topMenus[0][0]) + ` <span class="idc-dim">×${topMenus[0][1]}</span>` : '–'}</b></div>
+            <div><span>เมล็ด</span><b>${pct(topBean)}</b></div>
+            <div><span>ความหวาน</span><b>${pct(topSweet)}</b></div>
+            <div><span>นม</span><b>${topMilk ? esc(topMilk[0][0]) : 'นมปกติ'}</b></div>
+            <div><span>แก้วทั้งหมด</span><b>${myOrders.length} <span class="idc-dim">ใน ${visitDays} วัน</span></b></div>
+            <div><span>ล่าสุด</span><b>${daysAgo === null ? '–' : daysAgo <= 0 ? 'วันนี้' : daysAgo + ' วันก่อน'}${daysAgo !== null && daysAgo > 21 ? ' <span class="idc-warn">เงียบไป</span>' : ''}</b></div>
+            <div><span>ลูกค้าตั้งแต่</span><b>${thD(firstD)}</b></div>
+            <div><span>คะแนน</span><b>${avgRating !== null ? '⭐ ' + avgRating.toFixed(1) + ` <span class="idc-dim">(${myFeedback.length})</span>` : '–'}</b></div>
+          </div>
+          ${severe.length ? `<div class="idc-alert">⚠️ ${severe.map(esc).join(' · ')}</div>` : ''}
+          ${P && P.tags && P.tags.length ? `<div class="idc-tags">${P.tags.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+          <div class="idc-hint">แตะเพื่อดูการวิเคราะห์ ▾</div>
+        </div>`;
+      const S = (P && P.strategy) || {};
+      const synthHtml = `
+        <div class="psec"><div class="psec-h">🧠 สังเคราะห์ความเข้าใจ</div>
+          ${P ? `<p>${esc(P.insight)}</p><div class="psec-note">วิเคราะห์จากประวัติสั่งและคำตอบทั้งหมด ณ ${new Date(P.generated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</div>` : '<p class="idc-dim">ยังไม่มีบทวิเคราะห์ (ลูกค้าที่มีน้อยกว่า 3 แก้วยังไม่ได้วิเคราะห์)</p>'}
+        </div>`;
+      const strategyHtml = P ? `
+        <div class="psec"><div class="psec-h">🎯 กลยุทธ์แมวส้ม</div>
+          ${S.recommend && S.recommend.length ? `<div class="pst"><span>แนะนำครั้งหน้า</span><ul>${S.recommend.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+          ${S.promo && S.promo !== '—' ? `<div class="pst"><span>โปร / โอกาส</span><div>${esc(S.promo)}</div></div>` : ''}
+          ${S.service ? `<div class="pst"><span>ตอนชงให้</span><div>${esc(S.service)}</div></div>` : ''}
+          ${S.watch && S.watch !== '—' ? `<div class="pst warn"><span>ระวัง</span><div>${esc(S.watch)}</div></div>` : ''}
+        </div>` : '';
       return `
         <div class="cust-card" data-id="${m.id}">
-          <div class="cust-head">
-            <div>
-              <div class="cust-name">${rankBadge} ${m.display_name} ${m.member_type === 'walkin' ? '<span class="gtky-badge" style="background:color-mix(in srgb, var(--text) 8%, transparent);color:color-mix(in srgb, var(--text) 45%, transparent);">🚶 Not a Member</span>' : '<span class="gtky-badge">🔗 LINE Member</span>'}</div>
-              <div class="cust-meta">${myOrders.length} cups${(() => { const f = myOrders.filter(o => o.order_type === 'our_treat' || o.order_type === 'reward').length; return f ? ' (' + f + ' free)' : ''; })()}${myFeedback.length ? ' · ' + myFeedback.length + ' feedback' : ''}${myGtky.length ? ' · ' + myGtky.length + ' GTKY' : ''}${myManualNotes.length ? ' · ' + myManualNotes.length + ' notes' : ''}</div>
-            </div>
-            ${avgRating !== null ? `<div class="cust-rating">⭐ ${avgRating.toFixed(1)}</div>` : ''}
-          </div>
+          <div class="cust-head">${idCard}</div>
           <div class="cust-detail">
             ${m.member_type !== 'walkin' && m.line_user_id ? `<a class="gf-btn primary" style="display:inline-block;text-decoration:none;margin-bottom:10px;" href="https://orangecat-tarot.vercel.app/collection.html?preview=${encodeURIComponent(m.line_user_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📖 View as customer (stamp book)</a>` : ''}
-            <div class="cust-insight">💡 ${insight}</div>
-            ${allergyHtml}
-            ${manualNotesHtml}
-            ${feedbackHtml}
-            ${gtkyHtml}
-            ${orderHtml}
+            ${synthHtml}
+            ${strategyHtml}
+            <details class="praw"><summary>📂 ข้อมูลดิบทั้งหมด (คำตอบ GTKY · ฟีดแบ็ค · แพ้/ไม่กิน · ประวัติสั่ง)</summary>
+              <div class="cust-insight">💡 ${insight}</div>
+              ${allergyHtml}
+              ${manualNotesHtml}
+              ${feedbackHtml}
+              ${gtkyHtml}
+              ${orderHtml}
+            </details>
           </div>
         </div>
       `;
@@ -2063,6 +2146,7 @@ if (!members.length) {
 
     listEl.querySelectorAll('.cust-card').forEach(card => {
       card.addEventListener('click', (e) => {
+        if (e.target.closest('.cust-detail')) return;
         const detail = card.querySelector('.cust-detail');
         detail.classList.toggle('open');
       });
