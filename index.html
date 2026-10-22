@@ -358,6 +358,12 @@ input:focus, select:focus, textarea:focus{border-color:color-mix(in srgb, var(--
   .idc-photo.has-img{border-color:var(--line)}
   .idc-cam{position:absolute;right:2px;bottom:2px;width:22px;height:22px;border-radius:50%;background:rgba(10,18,32,.72);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;z-index:2}
   .idc-photo.busy{opacity:.55;pointer-events:none}
+
+  .gmc{border:1px solid var(--line);background:var(--raised);border-radius:10px;padding:10px 12px;margin-top:8px}
+  .gmc-h{font-size:13.5px;font-weight:700;color:var(--text);line-height:1.4}
+  .gmc-meta{font-size:11.5px;color:var(--accent-text);margin:2px 0 4px}
+  .gmc-r{display:grid;grid-template-columns:22px 1fr;gap:4px;font-size:12.5px;line-height:1.55;color:var(--text);margin-top:3px}
+  .gmc-r>span{font-size:12px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -2136,6 +2142,19 @@ if (!members.length) {
         <div class="psec"><div class="psec-h">🧠 สังเคราะห์ความเข้าใจ</div>
           ${P ? `<p>${esc(P.insight)}</p><div class="psec-note">วิเคราะห์จากประวัติสั่งและคำตอบทั้งหมด ณ ${new Date(P.generated_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}</div>` : '<p class="idc-dim">ยังไม่มีบทวิเคราะห์ (ลูกค้าที่มีน้อยกว่า 3 แก้วยังไม่ได้วิเคราะห์)</p>'}
         </div>`;
+      const gm = (P && Array.isArray(P.group_members)) ? P.group_members : [];
+      const groupHtml = gm.length ? `
+        <div class="psec"><div class="psec-h">👥 เพื่อนในออฟฟิศ <span class="idc-dim" style="font-weight:400;">(ฟีดแบ็คที่ส่งต่อมา · ยังไม่ทราบชื่อ แยกตามเมนูที่สั่ง)</span></div>
+          ${gm.map(g => {
+            const rows = own.filter(o => (g.menus || []).includes(o.menu_item_name));
+            const last = rows.map(o => o.wanted_date || (o.brewed_at || '').slice(0, 10)).filter(Boolean).sort().pop();
+            return `<div class="gmc"><div class="gmc-h">${esc(g.label)}</div>
+              <div class="gmc-meta">${rows.length ? `สั่ง ${rows.length} แก้ว · ล่าสุด ${thD(last)}` : 'ยังไม่มีแก้วในระบบ'}</div>
+              ${g.says ? `<div class="gmc-r"><span>💬</span><div>${esc(g.says)}</div></div>` : ''}
+              ${g.spec ? `<div class="gmc-r"><span>🧪</span><div>${esc(g.spec)}</div></div>` : ''}
+              ${g.next ? `<div class="gmc-r"><span>➡️</span><div>${esc(g.next)}</div></div>` : ''}</div>`;
+          }).join('')}
+        </div>` : '';
       const strategyHtml = P ? `
         <div class="psec"><div class="psec-h">🎯 กลยุทธ์แมวส้ม</div>
           ${S.recommend && S.recommend.length ? `<div class="pst"><span>แนะนำครั้งหน้า</span><ul>${S.recommend.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
@@ -2149,6 +2168,7 @@ if (!members.length) {
           <div class="cust-detail">
             ${m.member_type !== 'walkin' && m.line_user_id ? `<a class="gf-btn primary" style="display:inline-block;text-decoration:none;margin-bottom:10px;" href="https://orangecat-tarot.vercel.app/collection.html?preview=${encodeURIComponent(m.line_user_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📖 View as customer (stamp book)</a>` : ''}
             ${synthHtml}
+            ${groupHtml}
             ${strategyHtml}
             <details class="praw"><summary>📂 ข้อมูลดิบทั้งหมด (คำตอบ GTKY · ฟีดแบ็ค · แพ้/ไม่กิน · ประวัติสั่ง)</summary>
               <div class="cust-insight">💡 ${insight}</div>
