@@ -1866,9 +1866,8 @@ async function loadCrmOutreach() {
     el.innerHTML = `<div class="empty">โหลดไม่สำเร็จ: ${e.message}</div>`;
   }
 }
-// Total the customer actually paid — price (base) + bean_surcharge (special-bean upcharge kept in
-// its own column so menu-dimension reporting can roll special-bean drinks up under their base name).
-function orderTotal(o) { return Number(o.price || 0) + Number(o.bean_surcharge || 0); }
+// Total the customer actually paid = price. price already INCLUDES the special-bean / milk surcharge; bean_surcharge is only the breakdown.
+function orderTotal(o) { return Number(o.price || 0); }
 let gtkyLoaded = false;
 let settingsLoaded = false;
 let crmLoaded = false;
